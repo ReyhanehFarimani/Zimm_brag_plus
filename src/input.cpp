@@ -55,13 +55,17 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
 
     if (key == "N")          return parse(val, in.N);
     if (key == "init")       { in.init = val; return true; }
-    if (key == "s_R")        return parse(val, in.s_R);
-    if (key == "s_L")        return parse(val, in.s_L);
-    if (key == "sigma_zb")   return parse(val, in.sigma_zb);
+    if (key == "init_state") { in.init_state = val; return true; }
+    if (key == "n_states")   return parse(val, in.n_states);
+    if (key == "bend_key")   { in.bend_key = val; return true; }
+    if (key == "J0")         return parse(val, in.J0);
+    if (key == "J1")         return parse(val, in.J1);
+    if (key == "J2")         return parse(val, in.J2);
     if (key == "kT")         return parse(val, in.kT);
     if (key == "n_equil")    return parse(val, in.n_equil);
     if (key == "n_sweeps")   return parse(val, in.n_sweeps);
     if (key == "max_disp")   return parse(val, in.max_disp);
+    if (key == "n_hinge")    return parse(val, in.n_hinge);
     if (key == "seed")       return parse(val, in.seed);
     if (key == "log_every")  return parse(val, in.log_every);
     if (key == "dump_every") return parse(val, in.dump_every);
@@ -107,6 +111,18 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.init != "rod" && in.init != "walk") {
         std::fprintf(stderr, "input: init must be 'rod' or 'walk'\n"); ok = false;
     }
+    if (in.init_state != "coil" && in.init_state != "random") {
+        std::fprintf(stderr, "input: init_state must be 'coil' or 'random'\n"); ok = false;
+    }
+    if (in.n_states != 2 && in.n_states != 3) {
+        std::fprintf(stderr, "input: n_states must be 2 or 3\n"); ok = false;
+    }
+    if (in.n_states == 2 && in.init_state != "random") {
+        std::fprintf(stderr, "input: n_states = 2 requires init_state = random\n"); ok = false;
+    }
+    if (in.bend_key != "triple" && in.bend_key != "pair") {
+        std::fprintf(stderr, "input: bend_key must be 'triple' or 'pair'\n"); ok = false;
+    }
     if (in.log_every <= 0) { std::fprintf(stderr, "input: log_every must be > 0\n"); ok = false; }
     for (int c = 0; c < N_PAIRS; ++c) {
         if (in.bond[c].bond_len <= 0) {
@@ -121,6 +137,9 @@ void print_input(const Input& in) {
     std::printf("# ---- input ----\n");
     std::printf("# N           = %d\n", in.N);
     std::printf("# init        = %s\n", in.init.c_str());
+    std::printf("# init_state  = %s\n", in.init_state.c_str());
+    std::printf("# n_states    = %d\n", in.n_states);
+    std::printf("# bend_key    = %s\n", in.bend_key.c_str());
     std::printf("# %-6s %10s %10s\n", "bond", "bond_len", "k_bond");
     for (int c = 0; c < N_PAIRS; ++c) {
         const BondParams& b = in.bond[c];
@@ -131,13 +150,14 @@ void print_input(const Input& in) {
         const BendParams& b = in.bend[t];
         std::printf("# %-6s %10g %10g\n", triple_name(static_cast<Triple>(t)), b.kappa, b.theta0);
     }
-    std::printf("# s_R         = %g\n",   in.s_R);
-    std::printf("# s_L         = %g\n",   in.s_L);
-    std::printf("# sigma_zb    = %g\n",   in.sigma_zb);
+    std::printf("# J0 (E_HH=-J0) = %g\n", in.J0);
+    std::printf("# J1 (E_CH=+J1) = %g\n", in.J1);
+    std::printf("# J2 (E_RL=+J2) = %g\n", in.J2);
     std::printf("# kT          = %g\n",   in.kT);
     std::printf("# n_equil     = %ld\n",  in.n_equil);
     std::printf("# n_sweeps    = %ld\n",  in.n_sweeps);
     std::printf("# max_disp    = %g\n",   in.max_disp);
+    std::printf("# n_hinge     = %d\n",   in.n_hinge);
     std::printf("# seed        = %lu\n",  in.seed);
     std::printf("# log_every   = %ld\n",  in.log_every);
     std::printf("# dump_every  = %ld\n",  in.dump_every);

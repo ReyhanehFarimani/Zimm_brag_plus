@@ -22,7 +22,9 @@ private:
     // running averages for the summary
     long   n_samples_   = 0;
     double sum_helix_   = 0.0;
+    double sum_estate_  = 0.0;
     double sum_ebond_   = 0.0;
+    double sum_ebend_   = 0.0;
     double sum_ree_     = 0.0;
     double sum_rg2_     = 0.0;
 };

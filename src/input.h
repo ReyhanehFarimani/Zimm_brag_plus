@@ -5,6 +5,9 @@
 enum class State : int { Coil = 0, R = 1, L = 2 };
 inline const char* state_name(State s) { return s == State::Coil ? "C" : (s == State::R ? "R" : "L"); }
 inline bool is_helix(State s) { return s != State::Coil; }
+// Ising-like spin: L = -1, C = 0, R = +1
+inline int   spin(State s) { return s == State::R ? 1 : (s == State::L ? -1 : 0); }
+inline State from_spin(int q) { return q > 0 ? State::R : (q < 0 ? State::L : State::Coil); }
 
 // ---------------------------------------------------------------------------
 // Pair class of two bonded residues; bond parameters are keyed by this.
@@ -76,20 +79,33 @@ struct BendParams {
 // Bend keys carry a triple suffix (kappa_CCC, theta0_HHH, ...).
 struct Input {
     int N = 50;                       // number of residues
-    std::string init = "rod";         // initial conformation: "rod" (straight) or "walk" (random walk)
+    std::string init       = "rod";   // initial conformation: "rod" (straight) or "walk" (random walk)
+    std::string init_state = "coil";  // initial states: "coil" (all C) or "random" (R or L, equal probability)
+    int n_states = 3;                 // 3: C/R/L with +-1 spin steps (R<->L only via C)
+                                      // 2: R/L only, the state move flips R<->L directly (requires init_state = random)
+    // bend_key: which states select the bend parameters at residue j
+    //   "triple": triple class of (j-1, j, j+1)                           [default]
+    //   "pair"  : pair class of (j-1, j), i.e. of the bond entering j; the pair classes are mapped onto
+    //             the bend table as CC->CCC, CH->CHC, HH->HHH, RL->RLR (freely-jointed-with-hinges models)
+    std::string bend_key   = "triple";
     BondParams bond[N_PAIRS];         // indexed by Pair
     BendParams bend[N_TRIPLES];       // indexed by Triple
 
-    // Zimm-Bragg: propagation for each helix sense, common nucleation penalty
-    double s_R      = 1.0;
-    double s_L      = 1.0;
-    double sigma_zb = 1e-3;
+    // nearest-neighbour state (Ising-like) energies, keyed by pair class:
+    //   E_HH = -J0   (helix propagation)      E_CH = +J1   (helix/coil boundary)
+    //   E_CC =  0                              E_RL = +J2   (R/L junction)
+    double J0 = 1.0;
+    double J1 = 2.0;
+    double J2 = 2.0;
 
     // thermodynamics / MC
     double kT          = 1.0;
     long   n_equil     = 1000;
     long   n_sweeps    = 10000;
     double max_disp    = 0.1;         // trial displacement amplitude
+    int    n_hinge     = 0;           // hinge moves per sweep (0 = off). Flips the spin of a residue and redraws the
+                                      // directions of the affected bonds from their new hinge distributions, rotating
+                                      // the downstream chain rigidly. Exact for chains WITHOUT non-bonded interactions.
     unsigned long seed = 12345;
 
     // output
@@ -98,6 +114,14 @@ struct Input {
     std::string out_prefix = "run";
 
     const BondParams& p(Pair c)   const { return bond[static_cast<int>(c)]; }
+    double pair_energy(Pair c) const {
+        switch (c) {
+        case Pair::HH: return -J0;
+        case Pair::CH: return  J1;
+        case Pair::RL: return  J2;
+        default:       return 0.0;
+        }
+    }
     const BendParams& p(Triple t) const { return bend[static_cast<int>(t)]; }
 };
 

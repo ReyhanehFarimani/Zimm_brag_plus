@@ -13,6 +13,7 @@ public:
 
     double acc_state() const { return try_state_ ? double(acc_state_) / try_state_ : 0.0; }
     double acc_pos()   const { return try_pos_   ? double(acc_pos_)   / try_pos_   : 0.0; }
+    double acc_hinge() const { return try_hinge_ ? double(acc_hinge_) / try_hinge_ : 0.0; }
 
 private:
     const Input& in_;
@@ -21,4 +22,5 @@ private:
 
     long try_state_ = 0, acc_state_ = 0;
     long try_pos_   = 0, acc_pos_   = 0;
+    long try_hinge_ = 0, acc_hinge_ = 0;
 };
