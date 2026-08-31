@@ -1,0 +1,58 @@
+# Zimm-Bragg chain: residue states C (coil), R (right helix), L (left helix)
+N           = 200
+init        = rod          # rod | walk
+
+# ---- bonds: keyed by the pair class of the two bonded residues ----
+#   CC = coil-coil, CH = coil-helix, HH = same-sense helix (RR/LL), RL = opposite sense
+bond_len_CC = 1.0
+k_bond_CC   = 100.0
+bond_len_CH = 1.0
+k_bond_CH   = 100.0
+bond_len_HH = 1,0
+k_bond_HH   = 100.0
+bond_len_RL = 1.0
+k_bond_RL   = 100.0
+
+# ---- bends: keyed by the triple class of residues (i-1, i, i+1) ----
+# symmetric under reversal and R<->L mirror; 'H' = all helices in the triple share a sense
+#   CCC
+#   CCH = CCR CCL RCC LCC      CHC = CRC CLC
+#   CHH = CRR CLL RRC LLC      CRL = CRL CLR LRC RLC
+#   HCH = RCR LCL              RCL = RCL LCR
+#   HHH = RRR LLL              RRL = RRL LLR LRR RLL      RLR = RLR LRL
+kappa_CCC   = 0.0
+theta0_CCC   = 3.14159265   # pi = straight
+kappa_CCH   = 0.0
+theta0_CCH   = 3.14159265   # pi = straight
+kappa_CHC   = 0.0
+theta0_CHC   = 3.14159265   # pi = straight
+kappa_CHH   = 0.0
+theta0_CHH   = 3.14159265   # pi = straight
+kappa_CRL   = 0.0
+theta0_CRL   = 3.14159265   # pi = straight
+kappa_HCH   = 0.0
+theta0_HCH   = 3.14159265   # pi = straight
+kappa_RCL   = 0.0
+theta0_RCL   = 3.14159265   # pi = straight
+kappa_HHH   = 10000.0
+theta0_HHH  = 180.0
+kappa_RRL   = 0.0
+theta0_RRL   = 3.14159265   # pi = straight
+kappa_RLR   = 0.0
+theta0_RLR   = 3.14159265   # pi = straight
+
+# ---- nearest-neighbour state energies (Ising-like; spin L=-1, C=0, R=+1) ----
+#   E_HH = -J0 (propagation)   E_CH = +J1 (boundary)   E_CC = 0   E_RL = +J2 (R/L junction)
+J0          = 5.0
+J1          = 0.0
+J2          = 5.0
+
+kT          = 1.0
+n_equil     = 0
+n_sweeps    = 100000000
+max_disp    = 0.1
+seed        = 12345
+
+log_every   = 10000
+dump_every  = 10000
+out_prefix  = run

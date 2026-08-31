@@ -1,0 +1,11 @@
+build/
+zimm
+*_obs.dat
+*_conf.xyz
+.DS_Store
+runs/*/out/
+runs/*/logs/
+runs/*/inputs/
+runs/*/prev_*/
+runs/*/batch.log
+runs/*/fig2_long.log
