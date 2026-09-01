@@ -77,6 +77,14 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "nb_A")       return parse(val, in.nb_A);
     if (key == "nb_sigma")   return parse(val, in.nb_sigma);
     if (key == "nb_rcut")    return parse(val, in.nb_rcut);
+    if (key == "nb_hh")      { in.nb_hh = val; return true; }
+    if (key == "gb_eps0")    return parse(val, in.gb_eps0);
+    if (key == "gb_aniso_eps") return parse(val, in.gb_aniso_eps);
+    if (key == "gb_mu")      return parse(val, in.gb_mu);
+    if (key == "gb_nu")      return parse(val, in.gb_nu);
+    if (key == "gb_kappa_p") return parse(val, in.gb_kappa_p);
+    if (key == "rod_L")      return parse(val, in.rod_L);
+    if (key == "rod_r")      return parse(val, in.rod_r);
     if (key == "seed")       return parse(val, in.seed);
     if (key == "log_every")  return parse(val, in.log_every);
     if (key == "dump_every") return parse(val, in.dump_every);
@@ -134,6 +142,12 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.nb_type != "none" && in.nb_type != "gauss" && in.nb_type != "wca") {
         std::fprintf(stderr, "input: nb_type must be none, gauss or wca\n"); ok = false;
     }
+    if (in.nb_hh != "same" && in.nb_hh != "gb") {
+        std::fprintf(stderr, "input: nb_hh must be same or gb\n"); ok = false;
+    }
+    if (in.nb_hh == "gb" && in.nb_type == "none") {
+        std::fprintf(stderr, "input: nb_hh = gb needs nb_type = gauss or wca for the coil pairs\n"); ok = false;
+    }
     if (in.nb_type != "none" && in.n_hinge > 0) {
         std::fprintf(stderr, "input: the hinge move (n_hinge > 0) is only valid without non-bonded interactions\n"); ok = false;
     }
@@ -178,6 +192,9 @@ void print_input(const Input& in) {
     std::printf("# n_hinge     = %d\n",   in.n_hinge);
     std::printf("# n_pivot     = %d  (max_rot = %g)\n", in.n_pivot, in.max_rot);
     std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
+    std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
+                in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);
+    std::printf("# rod         = L %g, r %g  (D = %g, L/D = %g)\n", in.rod_L, in.rod_r, 2 * in.rod_r, in.rod_L / (2 * in.rod_r));
     std::printf("# seed        = %lu\n",  in.seed);
     std::printf("# log_every   = %ld\n",  in.log_every);
     std::printf("# dump_every  = %ld\n",  in.dump_every);

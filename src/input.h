@@ -122,6 +122,22 @@ struct Input {
     double      nb_A     = 9.01;
     double      nb_sigma = 1.5;
     double      nb_rcut  = 0.0;
+    // helix-helix pairs: nb_hh = same (the isotropic potential above) | gb (purely repulsive, WCA-truncated
+    // Gay-Berne between rods of length rod_L and diameter D = 2 rod_r, axes = local chain tangents):
+    //   U = 4 eps [(s0/rho)^12 - (s0/rho)^6] + eps  for rho < 2^(1/6) s0,  rho = r - sigma(u1,u2,r^) + s0,  s0 = D,
+    //   sigma = s0 [1 - chi/2 ( (a+b)^2/(1+chi c) + (a-b)^2/(1-chi c) )]^(-1/2),  a = r^.u1, b = r^.u2, c = u1.u2,
+    //   chi = (k^2-1)/(k^2+1), k = L/D;  eps = eps0 (gb_aniso_eps = 0) or the standard anisotropic form with
+    //   mu, nu, kappa' (gb_aniso_eps = 1).  Helix-coil pairs use the isotropic potential for now.
+    std::string nb_hh        = "same";
+    double      gb_eps0      = 1.0;
+    int         gb_aniso_eps = 1;
+    double      gb_mu        = 2.0;
+    double      gb_nu        = 1.0;
+    double      gb_kappa_p   = 5.0;
+
+    // rod geometry written to the trajectory for helical residues (coil residues are spheres of radius rod_r)
+    double rod_L = 2.5;               // rod length
+    double rod_r = 1.0;               // rod radius (column rod_D = 2 rod_r)
 
     // output
     long        log_every  = 100;
