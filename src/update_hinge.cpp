@@ -28,16 +28,6 @@ double draw_angle(const BendParams& p, std::mt19937_64& rng) {
     return p.theta0;                                                        // (unreachable in practice)
 }
 
-Vec3 cross(const Vec3& a, const Vec3& b) {
-    return Vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-}
-
-// rotate v about unit axis k by angle a (Rodrigues)
-Vec3 rotate(const Vec3& v, const Vec3& k, double a) {
-    const double c = std::cos(a), s = std::sin(a);
-    return c * v + s * cross(k, v) + (dot(k, v) * (1.0 - c)) * k;
-}
-
 // Redraw bond j (j >= 1) so that the valence angle at bead j is theta, azimuth random; rotate beads j+1.. rigidly.
 void resample_bond(Chain& chain, int j, double theta, std::mt19937_64& rng) {
     std::uniform_real_distribution<double> unif(0.0, 1.0);
