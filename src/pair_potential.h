@@ -25,3 +25,22 @@ double hinge_log_weight(const BendParams& p);
 // Nearest-neighbour state energy of the pair (i, i+1): -J0 (HH), +J1 (CH), 0 (CC), +J2 (RL).
 double state_energy(const Chain& chain, int i);             // i in [0, N-2]
 double total_state_energy(const Chain& chain);
+
+// ---- non-bonded (steric) interaction, all pairs with |i-j| > 1 ----
+// isotropic pair energy (gauss / wca) as a function of the squared distance
+double nb_iso_energy(const Input& in, double r2);
+// purely repulsive Gay-Berne between rods with axes u1, u2 (unit) separated by rvec (from 1 to 2)
+double gb_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rvec);
+// full pair energy of beads a and b of the chain (states, positions and, for helix-helix, tangents)
+double nb_pair_energy(const Chain& chain, int a, int b);
+// true if the pair energy depends on the tangents (helix-helix Gay-Berne active)
+bool nb_anisotropic(const Input& in);
+// energy of all pairs involving bead i (|i-j| > 1)
+double nb_bead_energy(const Chain& chain, int i);
+// energy of all pairs that can change when bead i moves: pairs involving beads i-1, i, i+1 when the
+// interaction depends on the tangents, pairs involving bead i otherwise
+double nb_local_energy(const Chain& chain, int i);
+// energy of all pairs (a, b) with a <= i <= b and b - a > 1: the pairs that change when the chain beyond
+// bead i is rotated rigidly about it (tangents of the tail rotate rigidly, the tangent at i does not)
+double nb_pivot_energy(const Chain& chain, int i);
+double total_nb_energy(const Chain& chain);
