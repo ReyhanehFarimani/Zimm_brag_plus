@@ -35,7 +35,16 @@ bool try_position_move(Chain& chain, int i, const Input& in, std::mt19937_64& rn
     const Vec3 old_p = chain.pos[i];
     const Vec3 new_p = old_p + Vec3(disp(rng), disp(rng), disp(rng));
 
-    const double dE = local_energy(chain, i, new_p) - local_energy(chain, i, old_p);
+    double dE = local_energy(chain, i, new_p) - local_energy(chain, i, old_p);
+    // non-bonded part: apply the move tentatively (the tangents of i-1, i, i+1 depend on pos[i])
+    if (in.nb_type[0] != 'n') {
+        const double e_nb_old = nb_local_energy(chain, i);
+        chain.pos[i] = new_p;
+        dE += nb_local_energy(chain, i) - e_nb_old;
+        if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
+        chain.pos[i] = old_p;
+        return false;
+    }
 
     if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) {
         chain.pos[i] = new_p;
