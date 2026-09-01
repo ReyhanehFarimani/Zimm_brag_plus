@@ -1,5 +1,6 @@
 #include "input.h"
 
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -49,7 +50,11 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
         if (base == "kappa" || base == "theta0") {
             const int i = triple_index(suf);
             if (i < 0) return false;
-            return base == "kappa" ? parse(val, in.bend[i].kappa) : parse(val, in.bend[i].theta0);
+            if (base == "kappa") return parse(val, in.bend[i].kappa);
+            // theta0 accepts radians, or degrees with a "deg" suffix:  theta0_HHH = 135 deg
+            if (!parse(val, in.bend[i].theta0)) return false;
+            if (val.find("deg") != std::string::npos) in.bend[i].theta0 *= M_PI / 180.0;
+            return true;
         }
     }
 
@@ -66,6 +71,12 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "n_sweeps")   return parse(val, in.n_sweeps);
     if (key == "max_disp")   return parse(val, in.max_disp);
     if (key == "n_hinge")    return parse(val, in.n_hinge);
+    if (key == "n_pivot")    return parse(val, in.n_pivot);
+    if (key == "max_rot")    return parse(val, in.max_rot);
+    if (key == "nb_type")    { in.nb_type = val; return true; }
+    if (key == "nb_A")       return parse(val, in.nb_A);
+    if (key == "nb_sigma")   return parse(val, in.nb_sigma);
+    if (key == "nb_rcut")    return parse(val, in.nb_rcut);
     if (key == "seed")       return parse(val, in.seed);
     if (key == "log_every")  return parse(val, in.log_every);
     if (key == "dump_every") return parse(val, in.dump_every);
@@ -120,6 +131,13 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.n_states == 2 && in.init_state != "random") {
         std::fprintf(stderr, "input: n_states = 2 requires init_state = random\n"); ok = false;
     }
+    if (in.nb_type != "none" && in.nb_type != "gauss" && in.nb_type != "wca") {
+        std::fprintf(stderr, "input: nb_type must be none, gauss or wca\n"); ok = false;
+    }
+    if (in.nb_type != "none" && in.n_hinge > 0) {
+        std::fprintf(stderr, "input: the hinge move (n_hinge > 0) is only valid without non-bonded interactions\n"); ok = false;
+    }
+    if (in.nb_rcut <= 0.0) in.nb_rcut = (in.nb_type == "wca") ? std::pow(2.0, 1.0 / 6.0) * in.nb_sigma : 3.5 * in.nb_sigma;
     if (in.bend_key != "triple" && in.bend_key != "pair") {
         std::fprintf(stderr, "input: bend_key must be 'triple' or 'pair'\n"); ok = false;
     }
@@ -158,6 +176,8 @@ void print_input(const Input& in) {
     std::printf("# n_sweeps    = %ld\n",  in.n_sweeps);
     std::printf("# max_disp    = %g\n",   in.max_disp);
     std::printf("# n_hinge     = %d\n",   in.n_hinge);
+    std::printf("# n_pivot     = %d  (max_rot = %g)\n", in.n_pivot, in.max_rot);
+    std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
     std::printf("# seed        = %lu\n",  in.seed);
     std::printf("# log_every   = %ld\n",  in.log_every);
     std::printf("# dump_every  = %ld\n",  in.dump_every);

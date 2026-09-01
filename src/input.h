@@ -103,10 +103,25 @@ struct Input {
     long   n_equil     = 1000;
     long   n_sweeps    = 10000;
     double max_disp    = 0.1;         // trial displacement amplitude
+    int    n_pivot     = 0;           // pivot moves per sweep (0 = off): rotate the chain beyond a random bead by a
+                                      // random angle in [-max_rot, max_rot] about a random axis (full energy change)
+    double max_rot     = 3.14159265358979;
     int    n_hinge     = 0;           // hinge moves per sweep (0 = off). Flips the spin of a residue and redraws the
                                       // directions of the affected bonds from their new hinge distributions, rotating
                                       // the downstream chain rigidly. Exact for chains WITHOUT non-bonded interactions.
     unsigned long seed = 12345;
+
+    // non-bonded (steric) interaction between all bead pairs except bonded neighbours |i-j| = 1
+    //   nb_type = none | gauss | wca
+    //   gauss : U(r) = nb_A * exp(-(r/nb_sigma)^2)                       (soft isotropic core)
+    //   wca   : U(r) = 4 nb_A [(nb_sigma/r)^12 - (nb_sigma/r)^6] + nb_A   for r < 2^(1/6) nb_sigma
+    //   nb_rcut: cutoff (0 = automatic: 3.5 sigma for gauss, 2^(1/6) sigma for wca)
+    // (isotropic and state-independent for now; the pair energy is routed through the two states so a
+    //  state-dependent table can be added without touching the moves)
+    std::string nb_type  = "none";
+    double      nb_A     = 9.01;
+    double      nb_sigma = 1.5;
+    double      nb_rcut  = 0.0;
 
     // output
     long        log_every  = 100;
