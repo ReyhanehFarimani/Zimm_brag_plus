@@ -32,9 +32,10 @@ bool try_state_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     }
 
     const State old_s = chain.state[i];
-    const double e_old = local_energy(chain, i);
+    // the non-bonded pair type of (i, j) changes with the state of i (helix-helix vs isotropic)
+    const double e_old = local_energy(chain, i) + (nb_anisotropic(in) ? nb_bead_energy(chain, i) : 0.0);
     chain.state[i] = from_spin(q_new);
-    const double dE = local_energy(chain, i) - e_old;
+    const double dE = local_energy(chain, i) + (nb_anisotropic(in) ? nb_bead_energy(chain, i) : 0.0) - e_old;
 
     if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
     chain.state[i] = old_s;                              // rejected: restore
