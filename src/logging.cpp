@@ -60,14 +60,18 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
 
 void Logger::dump_config(long sweep, const Chain& chain) {
     if (!conf_) return;
-    // extended-xyz frame (OVITO-readable): species = C (coil), R or L (helix sense); position; local tangent
-    // (unit vector, the rod axis of a helical residue); spin (-1/0/+1)
-    std::fprintf(conf_, "%d\nProperties=species:S:1:pos:R:3:tangent:R:3:spin:I:1 sweep=%ld\n", chain.N(), sweep);
+    // extended-xyz frame (OVITO-readable): species = C (coil), R or L (helix sense); position;
+    // orientation = unit quaternion (x, y, z, w) rotating the z axis onto the local tangent (rod axis);
+    // rod_L, rod_D = rod length and diameter (helix), 0 and sphere diameter (coil); spin (-1/0/+1)
+    std::fprintf(conf_, "%d\nProperties=species:S:1:pos:R:3:orientation:R:4:rod_L:R:1:rod_D:R:1:spin:I:1 sweep=%ld\n",
+                 chain.N(), sweep);
     for (int i = 0; i < chain.N(); ++i) {
-        const Vec3 t = chain.tangent(i);
-        std::fprintf(conf_, "%s %14.8f %14.8f %14.8f %10.6f %10.6f %10.6f %2d\n",
+        const bool helix = is_helix(chain.state[i]);
+        double q[4] = {0.0, 0.0, 0.0, 1.0};
+        if (helix) chain.quaternion(i, q);
+        std::fprintf(conf_, "%s %14.8f %14.8f %14.8f %10.6f %10.6f %10.6f %10.6f %6.3f %6.3f %2d\n",
                      state_name(chain.state[i]), chain.pos[i].x, chain.pos[i].y, chain.pos[i].z,
-                     t.x, t.y, t.z, spin(chain.state[i]));
+                     q[0], q[1], q[2], q[3], helix ? in_.rod_L : 0.0, 2.0 * in_.rod_r, spin(chain.state[i]));
     }
     std::fflush(conf_);
 }
