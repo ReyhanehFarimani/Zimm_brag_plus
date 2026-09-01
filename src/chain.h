@@ -52,6 +52,14 @@ public:
     Vec3   bond(int i) const { return pos[i + 1] - pos[i]; }   // i in [0, N-2]
     double bend_angle(int i) const;    // valence angle at bead i between (pos[i-1]-pos[i]) and (pos[i+1]-pos[i]);
                                        // straight chain = pi. i in [1, N-2]
+    // Local tangent of the chain at bead i (unit vector): the bisector of the two adjacent bond directions,
+    // t_i ~ b(i-1)/|b(i-1)| + b(i)/|b(i)|  (one bond at the chain ends). Used as the axis of a helical
+    // residue when it is represented as a rod; it depends only on positions, so it needs no extra degrees
+    // of freedom or moves.
+    Vec3 tangent(int i) const;
+    // Orientation of the rod at bead i as a unit quaternion (x, y, z, w): the minimal rotation taking the
+    // z axis onto tangent(i). OVITO convention (Orientation property), cylinder/ellipsoid axis along z.
+    void quaternion(int i, double q[4]) const;
     double end_to_end() const;
     double rg2() const;                // squared radius of gyration
 

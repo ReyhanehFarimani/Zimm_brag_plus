@@ -58,3 +58,22 @@ double Chain::rg2() const {
 int Chain::count(State s) const {
     return static_cast<int>(std::count(state.begin(), state.end(), s));
 }
+
+Vec3 Chain::tangent(int i) const {
+    Vec3 t;
+    if (i > 0)      { const Vec3 b = bond(i - 1); t = t + (1.0 / norm(b)) * b; }
+    if (i < N_ - 1) { const Vec3 b = bond(i);     t = t + (1.0 / norm(b)) * b; }
+    const double n = norm(t);
+    // the two bonds are exactly antiparallel (folded back): tangent undefined, fall back to the outgoing bond
+    if (n < 1e-12) { const Vec3 b = (i < N_ - 1) ? bond(i) : bond(i - 1); return (1.0 / norm(b)) * b; }
+    return (1.0 / n) * t;
+}
+
+void Chain::quaternion(int i, double q[4]) const {
+    const Vec3 t = tangent(i);
+    const double c = std::max(-1.0, std::min(1.0, t.z));       // cos(angle between z and t)
+    if (c < -1.0 + 1e-12) { q[0] = 1.0; q[1] = q[2] = q[3] = 0.0; return; }   // t = -z: rotate by pi about x
+    // axis = z x t = (-t.y, t.x, 0);  q = (axis_unit sin(a/2), cos(a/2))  with  |z x t| = sin a
+    const double s = std::sqrt(2.0 * (1.0 + c));               // = 2 cos(a/2)
+    q[0] = -t.y / s; q[1] = t.x / s; q[2] = 0.0; q[3] = 0.5 * s;
+}
