@@ -27,8 +27,8 @@ Logger::~Logger() {
 }
 
 void Logger::header() {
-    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %10s %10s %10s\n",
-                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge");
+    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s\n",
+                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot");
     std::fflush(obs_);
 }
 
@@ -39,11 +39,12 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     const double es  = total_state_energy(chain);
     const double eb  = total_bond_energy(chain);
     const double ek  = total_bend_energy(chain);
+    const double en  = total_nb_energy(chain);
     const double ree = chain.end_to_end();
     const double rg2 = chain.rg2();
 
-    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f\n",
-                 sweep, nR, nL, th, es, eb, ek, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge());
+    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f\n",
+                 sweep, nR, nL, th, es, eb, ek, en, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot());
 
     std::fflush(obs_);   // keep the file usable if a long run is killed
 
@@ -52,17 +53,21 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     sum_estate_ += es;
     sum_ebond_ += eb;
     sum_ebend_ += ek;
+    sum_enb_   += en;
     sum_ree_   += ree;
     sum_rg2_   += rg2;
 }
 
 void Logger::dump_config(long sweep, const Chain& chain) {
     if (!conf_) return;
-    // extended-xyz style frame: element = C (coil), R or L (helix sense)
-    std::fprintf(conf_, "%d\nsweep=%ld\n", chain.N(), sweep);
+    // extended-xyz frame (OVITO-readable): species = C (coil), R or L (helix sense); position; local tangent
+    // (unit vector, the rod axis of a helical residue); spin (-1/0/+1)
+    std::fprintf(conf_, "%d\nProperties=species:S:1:pos:R:3:tangent:R:3:spin:I:1 sweep=%ld\n", chain.N(), sweep);
     for (int i = 0; i < chain.N(); ++i) {
-        std::fprintf(conf_, "%s %14.8f %14.8f %14.8f\n",
-                     state_name(chain.state[i]), chain.pos[i].x, chain.pos[i].y, chain.pos[i].z);
+        const Vec3 t = chain.tangent(i);
+        std::fprintf(conf_, "%s %14.8f %14.8f %14.8f %10.6f %10.6f %10.6f %2d\n",
+                     state_name(chain.state[i]), chain.pos[i].x, chain.pos[i].y, chain.pos[i].z,
+                     t.x, t.y, t.z, spin(chain.state[i]));
     }
     std::fflush(conf_);
 }
@@ -76,6 +81,7 @@ void Logger::summary(const Chain& chain, const MC& mc) {
         std::printf("# <E_state>      = %.6f\n", sum_estate_ / n_samples_);
         std::printf("# <E_bond>       = %.6f\n", sum_ebond_ / n_samples_);
         std::printf("# <E_bend>       = %.6f\n", sum_ebend_ / n_samples_);
+        std::printf("# <E_nb>         = %.6f\n", sum_enb_   / n_samples_);
         std::printf("# <Ree>          = %.6f\n", sum_ree_   / n_samples_);
         std::printf("# <Rg2>          = %.6f\n", sum_rg2_   / n_samples_);
     }
@@ -84,5 +90,6 @@ void Logger::summary(const Chain& chain, const MC& mc) {
     std::printf("# acc_state      = %.4f\n", mc.acc_state());
     std::printf("# acc_pos        = %.4f\n", mc.acc_pos());
     std::printf("# acc_hinge      = %.4f\n", mc.acc_hinge());
+    std::printf("# acc_pivot      = %.4f\n", mc.acc_pivot());
     std::printf("# -----------------\n");
 }
