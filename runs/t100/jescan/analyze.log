@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/reyhaneh/Documents/Zimm_brag_plus/runs/t100/jescan/analyze.py", line 13, in <module>
+    cwd = os.getcwd(); os.chdir(".."); spec.loader.exec_module(ex); os.chdir(cwd)
+  File "<frozen importlib._bootstrap_external>", line 846, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 982, in get_code
+  File "<frozen importlib._bootstrap_external>", line 1039, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: '../exact_fss.py'

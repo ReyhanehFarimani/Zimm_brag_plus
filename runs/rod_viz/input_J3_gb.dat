@@ -1,0 +1,67 @@
+# Zimm-Bragg chain: residue states C (coil), R (right helix), L (left helix)
+N           = 200
+init        = walk
+
+# ---- bonds: keyed by the pair class of the two bonded residues ----
+#   CC = coil-coil, CH = coil-helix, HH = same-sense helix (RR/LL), RL = opposite sense
+bond_len_CC = 2.46
+k_bond_CC   = 0.987
+bond_len_CH = 2.42
+k_bond_CH   = 2.775
+bond_len_HH = 2.32
+k_bond_HH   = 19.1
+bond_len_RL = 2.3
+k_bond_RL   = 18
+
+# ---- bends: keyed by the triple class of residues (i-1, i, i+1) ----
+# symmetric under reversal and R<->L mirror; 'H' = all helices in the triple share a sense
+#   CCC
+#   CCH = CCR CCL RCC LCC      CHC = CRC CLC
+#   CHH = CRR CLL RRC LLC      CRL = CRL CLR LRC RLC
+#   HCH = RCR LCL              RCL = RCL LCR
+#   HHH = RRR LLL              RRL = RRL LLR LRR RLL      RLR = RLR LRL
+kappa_CCC   = 0.49
+theta0_CCC = 180 deg
+kappa_CCH   = 0.56
+theta0_CCH = 180 deg
+kappa_CHC   = 1.85
+theta0_CHC = 180 deg
+kappa_CHH   = 2.5
+theta0_CHH = 180 deg
+kappa_CRL   = 2.1
+theta0_CRL = 180 deg
+kappa_HCH   = 0.59
+theta0_HCH = 180 deg
+kappa_RCL   = 0.59
+theta0_RCL = 180 deg
+kappa_HHH   = 4.1
+theta0_HHH = 180 deg
+kappa_RRL   = 3.2
+theta0_RRL = 180 deg
+kappa_RLR   = 2.75
+theta0_RLR = 180 deg
+
+# ---- nearest-neighbour state energies (Ising-like; spin L=-1, C=0, R=+1) ----
+#   E_HH = -J0 (propagation)   E_CH = +J1 (boundary)   E_CC = 0   E_RL = +J2 (R/L junction)
+J0          = 3.0
+J1          = 0.0
+J2          = 3.0
+
+kT          = 1.0
+n_equil     = 30000
+n_sweeps    = 30000
+max_disp    = 1.5
+seed        = 77
+
+log_every   = 100
+dump_every  = 1000
+out_prefix  = chain_J3_gb
+n_hinge = 0
+rod_L = 2.5
+rod_r = 1.0
+nb_type = gauss
+nb_A = 9.01
+nb_sigma = 1.5
+nb_hh = gb
+gb_eps0 = 1.0
+n_pivot = 4
