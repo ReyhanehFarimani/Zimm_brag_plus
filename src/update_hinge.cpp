@@ -76,7 +76,7 @@ bool try_hinge_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     const State old_s = chain.state[i];
 
     // spin + bond energy before (bond parameters may depend on the pair class)
-    double e_old = 0.0;
+    double e_old = site_energy(chain, i);
     if (i > 0)     e_old += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
     if (i < N - 1) e_old += state_energy(chain, i)     + bond_energy(chain, i);
     // hinges in the window and their old parameters
@@ -88,7 +88,7 @@ bool try_hinge_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
 
     chain.state[i] = from_spin(q_new);
 
-    double e_new = 0.0;
+    double e_new = site_energy(chain, i);
     if (i > 0)     e_new += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
     if (i < N - 1) e_new += state_energy(chain, i)     + bond_energy(chain, i);
     double log_ratio = -(e_new - e_old) / in.kT;

@@ -27,8 +27,8 @@ Logger::~Logger() {
 }
 
 void Logger::header() {
-    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s\n",
-                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot");
+    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s\n",
+                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip");
     std::fflush(obs_);
 }
 
@@ -43,8 +43,8 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     const double ree = chain.end_to_end();
     const double rg2 = chain.rg2();
 
-    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f\n",
-                 sweep, nR, nL, th, es, eb, ek, en, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot());
+    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
+                 sweep, nR, nL, th, es, eb, ek, en, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot(), mc.acc_flip());
 
     std::fflush(obs_);   // keep the file usable if a long run is killed
 
@@ -95,5 +95,6 @@ void Logger::summary(const Chain& chain, const MC& mc) {
     std::printf("# acc_pos        = %.4f\n", mc.acc_pos());
     std::printf("# acc_hinge      = %.4f\n", mc.acc_hinge());
     std::printf("# acc_pivot      = %.4f\n", mc.acc_pivot());
+    std::printf("# acc_flip       = %.4f\n", mc.acc_flip());
     std::printf("# -----------------\n");
 }

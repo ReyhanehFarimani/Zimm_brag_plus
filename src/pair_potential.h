@@ -24,6 +24,9 @@ double hinge_log_weight(const BendParams& p);
 
 // Nearest-neighbour state energy of the pair (i, i+1): -J0 (HH), +J1 (CH), 0 (CC), +J2 (RL).
 double state_energy(const Chain& chain, int i);             // i in [0, N-2]
+// On-site energy of residue i: E_helix if it is R or L, 0 if coil.
+double site_energy(const Chain& chain, int i);
+// all pair terms plus all site terms
 double total_state_energy(const Chain& chain);
 
 // ---- non-bonded (steric) interaction, all pairs with |i-j| > 1 ----

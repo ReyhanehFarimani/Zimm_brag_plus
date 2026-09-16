@@ -58,9 +58,14 @@ double state_energy(const Chain& chain, int i) {
     return chain.input().pair_energy(chain.bond_class(i));
 }
 
+double site_energy(const Chain& chain, int i) {
+    return chain.input().site_energy(chain.state[i]);
+}
+
 double total_state_energy(const Chain& chain) {
     double e = 0.0;
     for (int i = 0; i < chain.N() - 1; ++i) e += state_energy(chain, i);
+    for (int i = 0; i < chain.N(); ++i) e += site_energy(chain, i);
     return e;
 }
 
@@ -103,6 +108,7 @@ double gb_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rv
 
 bool nb_anisotropic(const Input& in) { return in.nb_type[0] != 'n' && in.nb_hh == "gb"; }
 
+// helix-helix: Gay-Berne rods (if nb_hh = gb); coil-coil and helix-coil: the isotropic core
 double nb_pair_energy(const Chain& chain, int a, int b) {
     const Input& in = chain.input();
     if (in.nb_hh == "gb" && is_helix(chain.state[a]) && is_helix(chain.state[b]))

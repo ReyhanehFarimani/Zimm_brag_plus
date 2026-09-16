@@ -61,17 +61,21 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "N")          return parse(val, in.N);
     if (key == "init")       { in.init = val; return true; }
     if (key == "init_state") { in.init_state = val; return true; }
+    if (key == "state_pattern") { in.state_pattern = val; return true; }
+    if (key == "freeze_states") return parse(val, in.freeze_states);
     if (key == "n_states")   return parse(val, in.n_states);
     if (key == "bend_key")   { in.bend_key = val; return true; }
     if (key == "J0")         return parse(val, in.J0);
     if (key == "J1")         return parse(val, in.J1);
     if (key == "J2")         return parse(val, in.J2);
+    if (key == "E_helix")    return parse(val, in.E_helix);
     if (key == "kT")         return parse(val, in.kT);
     if (key == "n_equil")    return parse(val, in.n_equil);
     if (key == "n_sweeps")   return parse(val, in.n_sweeps);
     if (key == "max_disp")   return parse(val, in.max_disp);
     if (key == "n_hinge")    return parse(val, in.n_hinge);
     if (key == "n_pivot")    return parse(val, in.n_pivot);
+    if (key == "n_flip")     return parse(val, in.n_flip);
     if (key == "max_rot")    return parse(val, in.max_rot);
     if (key == "nb_type")    { in.nb_type = val; return true; }
     if (key == "nb_A")       return parse(val, in.nb_A);
@@ -136,7 +140,16 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.n_states != 2 && in.n_states != 3) {
         std::fprintf(stderr, "input: n_states must be 2 or 3\n"); ok = false;
     }
-    if (in.n_states == 2 && in.init_state != "random") {
+    if (!in.state_pattern.empty()) {
+        if ((int)in.state_pattern.size() != in.N) {
+            std::fprintf(stderr, "input: state_pattern must have exactly N = %d characters\n", in.N); ok = false;
+        }
+        for (char ch : in.state_pattern)
+            if (ch != 'C' && ch != 'R' && ch != 'L') { std::fprintf(stderr, "input: state_pattern may only contain C, R, L\n"); ok = false; break; }
+        if (in.n_states == 2 && in.state_pattern.find('C') != std::string::npos) {
+            std::fprintf(stderr, "input: state_pattern contains C but n_states = 2\n"); ok = false;
+        }
+    } else if (in.n_states == 2 && in.init_state != "random") {
         std::fprintf(stderr, "input: n_states = 2 requires init_state = random\n"); ok = false;
     }
     if (in.nb_type != "none" && in.nb_type != "gauss" && in.nb_type != "wca") {
@@ -169,7 +182,9 @@ void print_input(const Input& in) {
     std::printf("# ---- input ----\n");
     std::printf("# N           = %d\n", in.N);
     std::printf("# init        = %s\n", in.init.c_str());
-    std::printf("# init_state  = %s\n", in.init_state.c_str());
+    std::printf("# init_state  = %s%s%s\n", in.init_state.c_str(),
+                in.state_pattern.empty() ? "" : "  pattern = ", in.state_pattern.c_str());
+    std::printf("# freeze_states = %d\n", in.freeze_states);
     std::printf("# n_states    = %d\n", in.n_states);
     std::printf("# bend_key    = %s\n", in.bend_key.c_str());
     std::printf("# %-6s %10s %10s\n", "bond", "bond_len", "k_bond");
@@ -185,12 +200,14 @@ void print_input(const Input& in) {
     std::printf("# J0 (E_HH=-J0) = %g\n", in.J0);
     std::printf("# J1 (E_CH=+J1) = %g\n", in.J1);
     std::printf("# J2 (E_RL=+J2) = %g\n", in.J2);
+    std::printf("# E_helix (per R/L residue) = %g\n", in.E_helix);
     std::printf("# kT          = %g\n",   in.kT);
     std::printf("# n_equil     = %ld\n",  in.n_equil);
     std::printf("# n_sweeps    = %ld\n",  in.n_sweeps);
     std::printf("# max_disp    = %g\n",   in.max_disp);
     std::printf("# n_hinge     = %d\n",   in.n_hinge);
     std::printf("# n_pivot     = %d  (max_rot = %g)\n", in.n_pivot, in.max_rot);
+    std::printf("# n_flip      = %d\n", in.n_flip);
     std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);

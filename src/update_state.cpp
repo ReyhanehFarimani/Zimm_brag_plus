@@ -9,7 +9,7 @@ namespace {
 // state + bond energy of the two bonds touching i, and the bends at i-1, i, i+1
 double local_energy(const Chain& chain, int i) {
     const int N = chain.N();
-    double e = 0.0;
+    double e = site_energy(chain, i);
     if (i > 0)     e += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
     if (i < N - 1) e += state_energy(chain, i)     + bond_energy(chain, i);
     for (int k = i - 1; k <= i + 1; ++k)

@@ -12,7 +12,12 @@ void Chain::init() {
     std::mt19937_64 rng(in_.seed ^ 0x9E3779B97F4A7C15ULL);
     std::uniform_real_distribution<double> unif(0.0, 1.0);
 
-    if (in_.init_state == "random") {
+    if (!in_.state_pattern.empty()) {
+        for (int i = 0; i < N_; ++i) {
+            const char ch = in_.state_pattern[i];
+            state[i] = ch == 'R' ? State::R : (ch == 'L' ? State::L : State::Coil);
+        }
+    } else if (in_.init_state == "random") {
         for (int i = 0; i < N_; ++i) state[i] = unif(rng) < 0.5 ? State::R : State::L;
     } else {
         std::fill(state.begin(), state.end(), State::Coil);

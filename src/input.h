@@ -81,6 +81,9 @@ struct Input {
     int N = 50;                       // number of residues
     std::string init       = "rod";   // initial conformation: "rod" (straight) or "walk" (random walk)
     std::string init_state = "coil";  // initial states: "coil" (all C) or "random" (R or L, equal probability)
+    std::string state_pattern;        // explicit initial states, one character per residue (C/R/L), e.g. LLLLCCCC;
+                                      // overrides init_state when given (must have exactly N characters)
+    int freeze_states = 0;            // 1: no state (or hinge) moves, the states stay as initialised
     int n_states = 3;                 // 3: C/R/L with +-1 spin steps (R<->L only via C)
                                       // 2: R/L only, the state move flips R<->L directly (requires init_state = random)
     // bend_key: which states select the bend parameters at residue j
@@ -97,12 +100,15 @@ struct Input {
     double J0 = 1.0;
     double J1 = 2.0;
     double J2 = 2.0;
+    // on-site ("ground") energy of a helical residue, the same for R and L; coil = 0
+    double E_helix = 0.0;
 
     // thermodynamics / MC
     double kT          = 1.0;
     long   n_equil     = 1000;
     long   n_sweeps    = 10000;
     double max_disp    = 0.1;         // trial displacement amplitude
+    int    n_flip      = 0;           // domain sense-flip (R <-> L cluster) moves per sweep (0 = off)
     int    n_pivot     = 0;           // pivot moves per sweep (0 = off): rotate the chain beyond a random bead by a
                                       // random angle in [-max_rot, max_rot] about a random axis (full energy change)
     double max_rot     = 3.14159265358979;
@@ -127,7 +133,7 @@ struct Input {
     //   U = 4 eps [(s0/rho)^12 - (s0/rho)^6] + eps  for rho < 2^(1/6) s0,  rho = r - sigma(u1,u2,r^) + s0,  s0 = D,
     //   sigma = s0 [1 - chi/2 ( (a+b)^2/(1+chi c) + (a-b)^2/(1-chi c) )]^(-1/2),  a = r^.u1, b = r^.u2, c = u1.u2,
     //   chi = (k^2-1)/(k^2+1), k = L/D;  eps = eps0 (gb_aniso_eps = 0) or the standard anisotropic form with
-    //   mu, nu, kappa' (gb_aniso_eps = 1).  Helix-coil pairs use the isotropic potential for now.
+    //   mu, nu, kappa' (gb_aniso_eps = 1).  Helix-coil pairs use the same isotropic potential as coil-coil.
     std::string nb_hh        = "same";
     double      gb_eps0      = 1.0;
     int         gb_aniso_eps = 1;
@@ -145,6 +151,7 @@ struct Input {
     std::string out_prefix = "run";
 
     const BondParams& p(Pair c)   const { return bond[static_cast<int>(c)]; }
+    double site_energy(State s) const { return is_helix(s) ? E_helix : 0.0; }
     double pair_energy(Pair c) const {
         switch (c) {
         case Pair::HH: return -J0;
