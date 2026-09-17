@@ -140,6 +140,19 @@ struct Input {
     double      gb_mu        = 2.0;
     double      gb_nu        = 1.0;
     double      gb_kappa_p   = 5.0;
+    // nb_hh = fit: the measured helix-helix radial pair potential of the
+    // umbrella campaign (see pair_potential.cpp): erfc radial sectors x
+    // quadratic angular maps, handedness-resolved (R.R / L.L / R.L).
+    //   hf_theta0 : which campaign, 100 or 45 (deg)
+    //   hf_scale  : overall amplitude factor
+    //   hf_eps_s  : chiral amplification (multiplies the sin sector only;
+    //               0 = racemic reference, 1 = as measured)
+    //   hf_len    : code-units length of one campaign length unit a
+    //               (a = rod_L / L_block, L_block = 4.305 a (t100), 2.044 a (t45))
+    int    hf_theta0 = 100;
+    double hf_scale  = 1.0;
+    double hf_eps_s  = 1.0;
+    double hf_len    = 1.0;
 
     // rod geometry written to the trajectory for helical residues (coil residues are spheres of radius rod_r)
     double rod_L = 2.5;               // rod length

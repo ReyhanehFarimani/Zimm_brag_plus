@@ -34,10 +34,17 @@ double total_state_energy(const Chain& chain);
 double nb_iso_energy(const Input& in, double r2);
 // purely repulsive Gay-Berne between rods with axes u1, u2 (unit) separated by rvec (from 1 to 2)
 double gb_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rvec);
+// measured helix-helix radial pair potential (nb_hh = fit): erfc radial sectors x quadratic
+// angular maps, handedness-resolved; hand1/hand2 = spin (+1 R, -1 L) of the two residues
+double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rvec,
+                       int hand1, int hand2);
 // full pair energy of beads a and b of the chain (states, positions and, for helix-helix, tangents)
 double nb_pair_energy(const Chain& chain, int a, int b);
-// true if the pair energy depends on the tangents (helix-helix Gay-Berne active)
+// true if the pair energy depends on the tangents (helix-helix Gay-Berne or fit active)
 bool nb_anisotropic(const Input& in);
+// true if the pair energy depends on the helix handedness (nb_hh = fit): state moves that
+// change R <-> L, including domain flips, must then recompute the non-bonded energy
+bool nb_chiral(const Input& in);
 // energy of all pairs involving bead i (|i-j| > 1)
 double nb_bead_energy(const Chain& chain, int i);
 // energy of all pairs that can change when bead i moves: pairs involving beads i-1, i, i+1 when the

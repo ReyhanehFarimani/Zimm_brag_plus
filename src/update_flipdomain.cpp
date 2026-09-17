@@ -18,7 +18,9 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
         if (b < N - 1 && is_helix(chain.state[b + 1])) return false;
     }                                                             // else (a) single site: a = b = i
 
-    // energies that can change: the edge bonds (a-1, a) and (b, b+1) and the bends at a-1, a, b, b+1
+    // energies that can change: the edge bonds (a-1, a) and (b, b+1) and the bends at a-1, a, b, b+1;
+    // with a handedness-dependent non-bonded potential (nb_hh = fit) also every non-bonded pair
+    // involving a domain bead (in-domain pairs counted once)
     auto local = [&]() {
         double e = 0.0;
         if (a > 0)     e += state_energy(chain, a - 1) + bond_energy(chain, a - 1);
@@ -29,6 +31,13 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
             if (j < 1 || j > N - 2) continue;
             if (k > 0 && j == js[k - 1]) continue;                 // avoid double counting when the domain is short
             e += bend_energy(chain, j);
+        }
+        if (nb_chiral(in)) {
+            for (int k = a; k <= b; ++k)
+                for (int j = 0; j < N; ++j) {
+                    if (j >= a && j <= b) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
+                    if (j < k - 1 || j > k + 1) e += nb_pair_energy(chain, k, j);
+                }
         }
         return e;
     };

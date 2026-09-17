@@ -87,6 +87,10 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "gb_mu")      return parse(val, in.gb_mu);
     if (key == "gb_nu")      return parse(val, in.gb_nu);
     if (key == "gb_kappa_p") return parse(val, in.gb_kappa_p);
+    if (key == "hf_theta0")  return parse(val, in.hf_theta0);
+    if (key == "hf_scale")   return parse(val, in.hf_scale);
+    if (key == "hf_eps_s")   return parse(val, in.hf_eps_s);
+    if (key == "hf_len")     return parse(val, in.hf_len);
     if (key == "rod_L")      return parse(val, in.rod_L);
     if (key == "rod_r")      return parse(val, in.rod_r);
     if (key == "seed")       return parse(val, in.seed);
@@ -155,11 +159,17 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.nb_type != "none" && in.nb_type != "gauss" && in.nb_type != "wca") {
         std::fprintf(stderr, "input: nb_type must be none, gauss or wca\n"); ok = false;
     }
-    if (in.nb_hh != "same" && in.nb_hh != "gb") {
-        std::fprintf(stderr, "input: nb_hh must be same or gb\n"); ok = false;
+    if (in.nb_hh != "same" && in.nb_hh != "gb" && in.nb_hh != "fit") {
+        std::fprintf(stderr, "input: nb_hh must be same, gb or fit\n"); ok = false;
     }
-    if (in.nb_hh == "gb" && in.nb_type == "none") {
-        std::fprintf(stderr, "input: nb_hh = gb needs nb_type = gauss or wca for the coil pairs\n"); ok = false;
+    if ((in.nb_hh == "gb" || in.nb_hh == "fit") && in.nb_type == "none") {
+        std::fprintf(stderr, "input: nb_hh = %s needs nb_type = gauss or wca for the coil pairs\n", in.nb_hh.c_str()); ok = false;
+    }
+    if (in.nb_hh == "fit" && in.hf_theta0 != 100 && in.hf_theta0 != 45) {
+        std::fprintf(stderr, "input: hf_theta0 must be 100 or 45\n"); ok = false;
+    }
+    if (in.nb_hh == "fit" && in.hf_len <= 0.0) {
+        std::fprintf(stderr, "input: hf_len must be > 0\n"); ok = false;
     }
     if (in.nb_type != "none" && in.n_hinge > 0) {
         std::fprintf(stderr, "input: the hinge move (n_hinge > 0) is only valid without non-bonded interactions\n"); ok = false;
@@ -211,6 +221,9 @@ void print_input(const Input& in) {
     std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);
+    if (in.nb_hh == "fit")
+        std::printf("# hf          = theta0 %d, scale %g, eps_s %g, len %g (code units per a)\n",
+                    in.hf_theta0, in.hf_scale, in.hf_eps_s, in.hf_len);
     std::printf("# rod         = L %g, r %g  (D = %g, L/D = %g)\n", in.rod_L, in.rod_r, 2 * in.rod_r, in.rod_L / (2 * in.rod_r));
     std::printf("# seed        = %lu\n",  in.seed);
     std::printf("# log_every   = %ld\n",  in.log_every);
