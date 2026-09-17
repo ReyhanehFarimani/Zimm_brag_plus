@@ -45,5 +45,6 @@ EOT
 done; done; done; done
 echo "inputs: $(ls inputs/J*.dat | wc -l)"
 [ -n "$GEN_ONLY" ] && exit 0
-ls inputs/J*.dat | sort -t_ -k4,4 -k2.3,2nr -k1,1r | xargs -P ${NPROC:-6} -I{} sh -c 'b=$(basename {} .dat); grep -q summary logs/$b.log 2>/dev/null && exit 0; mkdir logs/$b.lock 2>/dev/null || exit 0; '"$BIN"' {} > logs/$b.log 2>&1; rmdir logs/$b.lock'
+# LC_ALL=C: in the de_DE locale of this machine "." is a thousands separator and sort -n reads 8.75 as 875
+ls inputs/J*.dat | LC_ALL=C sort -t_ -k4,4 -k2.3,2nr -k1,1r | xargs -P ${NPROC:-6} -I{} sh -c 'b=$(basename {} .dat); grep -q summary logs/$b.log 2>/dev/null && exit 0; mkdir logs/$b.lock 2>/dev/null || exit 0; '"$BIN"' {} > logs/$b.log 2>&1; rmdir logs/$b.lock'
 echo "done: $(grep -l summary logs/J*.log 2>/dev/null | wc -l) / $(ls inputs/J*.dat | wc -l)"
