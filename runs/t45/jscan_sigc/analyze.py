@@ -64,20 +64,23 @@ def read_obs(f):
     rows = np.array([[float(x) for x in l.split()] for l in lines if not l.startswith("#") and len(l.split()) == len(hdr)])
     return {k: rows[:, i] for i, k in enumerate(hdr)}
 def blk(x, nb=20): b = x[: len(x) // nb * nb].reshape(nb, -1).mean(1); return b.std(ddof=1) / np.sqrt(nb)
-runs = {}
-ATTR = "../jscan_attr"                          # weak same-handed attraction: eps_s above the first-attraction limit
-for log in sorted(glob.glob("logs/J*.log")) + sorted(glob.glob(ATTR + "/logs/J*.log")):
+runs, old = {}, {}
+ATTR = "../jscan_attr"                          # attraction scan: ONE eps_s on the potential as fitted (range 0.87 a: same-handed wells, R.L purely repulsive)
+OLD = ATTR + "/prev_RL_amplified"               # first attraction set: also ONE eps_s (8 .. 12.2) but at range 0.51 a, where R.L pairs get a local pocket too
+for log in sorted(glob.glob("logs/J*.log")) + sorted(glob.glob(ATTR + "/logs/J*.log")) + sorted(glob.glob(OLD + "/logs/J*.log")):
     if "summary" not in open(log).read(): continue
+    dst = old if log.startswith(OLD) else runs
     b = os.path.basename(log); odir = os.path.join(os.path.dirname(os.path.dirname(log)), "out"); g = re.search(r"J([\d.]+)_es([\d.]+)_sc([\d.]+)_s(\d+)", b)
     key = (float(g.group(1)), float(g.group(2)), float(g.group(3))) if g else (float(re.search(r"J([\d.]+)_nonb", b).group(1)), "ctrl", None)
     if g and key[1] == 0.0: key = (key[0], 0.0, None)                                # eps_s = 0: no range
     o = read_obs(os.path.join(odir, b[:-4] + "_obs.dat")); m = (o["n_R"] - o["n_L"]) / N0
-    runs.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), rg2=o["Rg2"].mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)),
+    dst.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), rg2=o["Rg2"].mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)),
         e_rg2=blk(o["Rg2"]), chi_th=N0 * o["helicity"].var(), U4=1 - (m**4).mean() / (3 * (m**2).mean()**2), enb=o["E_nb"].mean()))
-def cell(key3, k):
-    rs = runs[key3]; v = np.array([r[k] for r in rs]); sem = v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0.0
+def cell(key3, k, src=None):
+    rs = (runs if src is None else src)[key3]; v = np.array([r[k] for r in rs]); sem = v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0.0
     eb = np.sqrt(sum(r["e_" + k]**2 for r in rs)) / len(rs) if "e_" + k in rs[0] else 0.0
     return v.mean(), max(sem, eb), len(rs)
+def old_label(i, es): return (rf"hollow: $\epsilon_s$ = {min(es):g} … {max(es):g} at this range" + "\n" + "(R–L pairs get a local pocket too)") if i == 0 else None
 Js = sorted({k[0] for k in runs}); SCs = sorted({k[2] for k in runs if k[2] is not None}) or [0.51]
 kk = lambda J, e, sc: (J, e, None if e == 0.0 else sc)
 nfin = sum(len(v) for v in runs.values()); ntot = len(glob.glob("inputs/J*.dat"))
@@ -94,16 +97,19 @@ for r, sc in enumerate(SCs):
         for N in NS: x.plot(Jg, E[N][k], color=CN[N], lw=1.8, label=f"exact 1D, N = {N}" if (r == 0 and c == 0) else None)
         pts = [(J,) + cell((J, "ctrl", None), k)[:2] for J in Js if (J, "ctrl", None) in runs]
         if pts:
-            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="D", ms=9, mfc="none", mec=INK, mew=1.2, ecolor=INK, elinewidth=0.9, zorder=4, label="control: no non-bonded" if k == "am" else None)
+            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="D", ms=9, mfc="none", mec=INK, mew=1.2, ecolor=INK, elinewidth=0.9, zorder=4, label="control: no non-bonded" if k == "chi_th" else None)
         for n, e in enumerate(ess):
             pts = [(J + (n - (len(ess) - 1) / 2) * 0.09,) + cell(kk(J, e, sc), k)[:2] for J in Js if kk(J, e, sc) in runs]
             if not pts: continue
-            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="o", ms=5, mfc=col[e], mec=SURF, mew=0.6, ecolor=col[e], elinewidth=0.9, zorder=5, label=eps_label(e, sc) if k == "am" else None)
+            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="o", ms=5, mfc=col[e], mec=SURF, mew=0.6, ecolor=col[e], elinewidth=0.9, zorder=5, label=eps_label(e, sc) if k == "chi_th" else None)
+        for i, e in enumerate(sorted({q[1] for q in old if q[2] == sc})):
+            pts = [(J + ((len(ess) - 1) / 2 + 1 + i) * 0.09,) + cell((J, e, sc), k, old)[:2] for J in sorted({q[0] for q in old}) if (J, e, sc) in old]
+            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="o", ms=5, mfc=SURF, mec=RAMP_A[min(i + 1, 4)], mew=1.2, ecolor=RAMP_A[min(i + 1, 4)], elinewidth=0.9, zorder=5, label=old_label(i, sorted({q[1] for q in old if q[2] == sc})) if k == "chi_th" else None)
         x.set_xlim(0.5, 10); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
-        tx, ty, ha = {"th": (0.96, 0.66, "right"), "chi_th": (0.96, 0.94, "right"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.84, "left")}[k]
+        tx, ty, ha = {"th": (0.96, 0.66, "right"), "chi_th": (0.04, 0.94, "left"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.84, "left")}[k]
         x.text(tx, ty, rf"({'abcdefghijkl'[4 * r + c]})  $\theta_0$ = 45,  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top", ha=ha, fontsize=9, color=INK)
         if k == "U4": x.axhline(2 / 3, color=MUTED, lw=0.8, ls=":"); x.text(0.7, 0.655, "2/3 = fully ordered", color=MUTED, fontsize=8, va="top")
-        if k == "am": x.legend(loc="upper left", bbox_to_anchor=(0.0, 0.89), handletextpad=0.3, labelspacing=0.35, title="MC, N = 200", title_fontsize=8)
+        if k == "chi_th": x.legend(loc="upper right", fontsize=7, handletextpad=0.4, labelspacing=0.3, title="MC, N = 200", title_fontsize=8)
 ax[0, 0].legend(loc="lower right"); fig.tight_layout(); fig.savefig("transitions_t45.png", dpi=150); fig.savefig("transitions_t45.pdf"); plt.close(fig)
 
 # ---------------------------------------------------------------- figure 1b: NO exact curves -- one line per eps_s across J
@@ -118,10 +124,13 @@ for r, sc in enumerate(SCs):
             if not pts: continue
             X, V, Er = map(np.array, zip(*pts))
             x.errorbar(X, V, yerr=Er, fmt="o-", ms=4.5, lw=1.4, color=col[e], mfc=col[e], mec=SURF, mew=0.5, elinewidth=0.9, zorder=3 + ess.index(e), label=eps_label(e, sc))
+        for i, e in enumerate(sorted({q[1] for q in old if q[2] == sc})):
+            pts = [(J,) + cell((J, e, sc), k, old)[:2] for J in sorted({q[0] for q in old}) if (J, e, sc) in old]
+            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="o--", ms=5, lw=1.2, color=RAMP_A[min(i + 1, 4)], mfc=SURF, mec=RAMP_A[min(i + 1, 4)], mew=1.2, elinewidth=0.9, zorder=12 + i, label=old_label(i, sorted({q[1] for q in old if q[2] == sc})))
         x.set_xlim(0.5, 6.5); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
-        tx, ty, ha = {"th": (0.96, 0.10, "right"), "chi_th": (0.96, 0.94, "right"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.94, "left"), "rg2": (0.04, 0.94, "left")}[k]
+        tx, ty, ha = {"th": (0.96, 0.10, "right"), "chi_th": (0.04, 0.94, "left"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.94, "left"), "rg2": (0.04, 0.94, "left")}[k]
         x.text(tx, ty, rf"({'abcdefghijklmno'[5 * r + c]})  $\theta_0$ = 45,  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top" if ty > 0.5 else "bottom", ha=ha, fontsize=9, color=INK)
-        if k == "am": x.legend(loc="upper left", bbox_to_anchor=(0.0, 0.89), handletextpad=0.4, labelspacing=0.35, title="MC, N = 200", title_fontsize=8)
+        if k == "chi_th": x.legend(loc="upper right", fontsize=7, handletextpad=0.4, labelspacing=0.3, title="MC, N = 200", title_fontsize=8)
 fig.tight_layout(); fig.savefig("eps_lines_t45.png", dpi=140); fig.savefig("eps_lines_t45.pdf"); plt.close(fig)
 
 # ---------------------------------------------------------------- figure 2: relative change vs eps_s
