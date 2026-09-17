@@ -1,4 +1,6 @@
 #!/bin/bash
+# 2026-09-17 19:15, user: "you can go higher even if there is some attraction between RL" -> eps_s 11, 12, 13 added at 0.87 a:
+#   same-handed wells -3.0 / -3.8 / -4.6 kT;  R.L: pocket 0.12 kT (U >= 0) / well -0.3 kT / well -0.7 kT.
 # 2026-09-17 19:05: the user rejected the two-knob variant (hf_eps_rl) as a manipulation of the potential. DEFAULT = range 0.87 a with ONE
 # eps_s for every pair type, the potential exactly as fitted. The 0.51 / 0.62 a two-knob runs are in prev_two_knob_hf_eps_rl/.
 # t45: an attraction between SAME-handed helices only -- opposite-handed (R.L) pairs keep the measured, purely repulsive
@@ -18,7 +20,7 @@
 cd "$(dirname "$0")"
 BIN=${BIN:-../../../zimm}
 JS=${JS:-"2 2.5 3 3.5 4 4.5 5 5.5"}; SEEDS=${SEEDS:-"1 2 3"}; NEQ=${NEQ:-100000}; NSW=${NSW:-1000000}
-ess_of () { case $1 in 0.51) echo "8 8.5 9.2 10.7 12.2";; 0.62) echo "8.4 8.85 9.6 11.2 12.75";; 0.87) echo "7.2 7.6 8.3 9.6 10.5";; esac; }
+ess_of () { case $1 in 0.51) echo "8 8.5 9.2 10.7 12.2";; 0.62) echo "8.4 8.85 9.6 11.2 12.75";; 0.87) echo "7.2 7.6 8.3 9.6 10.5 11 12 13";; esac; }
 mkdir -p inputs out logs; n=0
 for SC in ${SCS:-0.87}; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
 n=$((n+1)); case " $SEEDS " in *" $s "*) ;; *) continue;; esac
