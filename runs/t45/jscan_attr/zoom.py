@@ -53,7 +53,9 @@ for i, (k, yl) in enumerate(PAN):
     x = ax[i // 3, i % 3]
     if k in EX: x.plot(Jg[sel], EX[k][sel], color=EXACT, lw=1.6, label="exact 1D, no non-bonded, N = 200")
     for n, e in enumerate(EPS):
-        pts = [(J + (n - 1.5) * 0.03,) + cell((J, e), k)[:2] for J in Js if (J, e) in runs]
+        # every mark at its TRUE J: a sideways shift on these steep curves makes a series look closer to / further from the
+        # exact curve than it is (the series coincide; the difference panels below are the place to tell them apart)
+        pts = [(J,) + cell((J, e), k)[:2] for J in Js if (J, e) in runs]
         if not pts: continue
         X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt=MRK[e] + "-", ms=5, lw=1.2, color=COL[e], mfc=COL[e], mec=SURF, mew=0.5, elinewidth=0.9, label=LAB[e], zorder=3 + n)
     x.set_xlim(JLO - 0.15, JHI + 0.15); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
