@@ -28,7 +28,7 @@ NSW=${NSW:-1000000}
 ess_of () { case $1 in 0.51) echo "0 1 1.5 2 2.5 2.9";; 0.62) echo "1 1.8 2.6 3.4 4.2";; 0.87) echo "1 2.3 3.6 4.9 6.2";; esac; }
 mkdir -p inputs out logs
 n=0
-for SC in ${SCS:-"0.51 0.62"}; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
+for SC in ${SCS:-0.51 0.62}; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
 n=$((n+1))                                   # the seed depends on (SC, J, ES, s) only, not on SEEDS
 case " $SEEDS " in *" $s "*) ;; *) continue;; esac
 b=J${J}_es${ES}_sc${SC}_s${s}; [ "$ES" = 0 ] && b=J${J}_es0_sc0_s${s}      # eps_s = 0: the range is irrelevant
