@@ -23,11 +23,11 @@ from matplotlib.colors import LinearSegmentedColormap
 _CJ = LinearSegmentedColormap.from_list("J", ["#52c79e", "#22b07f", "#149166", "#0e7150", "#09523a", "#043325"])   # validated ramp, J = 1 .. 6
 def cj(J): return _CJ((float(J) - 1.0) / 5.0)                      # J may be non-integer (4.5, 5.5)
 INK, MUTED, SURF = "#0b0b0b", "#898781", "#ffffff"
-RAMP_A = ["#9d92e6", "#6e5ed0", "#3f3196"]                        # validated violet ramp: same-handed ATTRACTION (eps_s above the limit)
+RAMP_A = ["#b3aaee", "#8f82e0", "#6c5cd0", "#4c3cae", "#2f2378"]                        # validated violet ramp: same-handed ATTRACTION (eps_s above the limit)
 def eps_colours(ess, sc):
     rep_ = [e for e in ess if e <= LIMIT.get(sc, 1e9)]; att = [e for e in ess if e > LIMIT.get(sc, 1e9)]
     col = {e: RAMP_E[min(int(round(i * 5 / max(len(rep_) - 1, 1))), 5)] for i, e in enumerate(rep_)}
-    col.update({e: RAMP_A[min(i, 2)] for i, e in enumerate(att)}); return col
+    col.update({e: RAMP_A[min(i, 4)] for i, e in enumerate(att)}); return col
 def eps_label(e, sc): return rf"$\epsilon_s$ = {e:g}" + (" (attr.)" if e > LIMIT.get(sc, 1e9) else "")
 
 # ---------------------------------------------------------------- exact 1D reference for the t45 parameters
@@ -139,7 +139,7 @@ for r, (k, yl, name) in enumerate(KEYS):
             REL[(k, sc, J)] = (np.array(ess), rel, rerr, Ns); ymax = max(ymax, np.abs(rel).max() + rerr.max())
             x.errorbar(np.array(ess) + (n - (len(Js) - 1) / 2) * 0.03, rel, yerr=rerr, fmt="o-", ms=4.5, lw=1.2, color=cj(J), mfc=cj(J), mec=SURF, mew=0.5, elinewidth=0.9, label=f"J = {J:g}")
         x.axhline(0, color=MUTED, lw=0.8); x.axvline(LIMIT.get(sc, np.nan), color=MUTED, lw=0.8, ls=":"); x.axvline(1.0, color=MUTED, lw=0.8, ls="--")
-        x.set_xlim(0, 10.0); x.set_xlabel(r"chiral amplitude $\epsilon_s$"); x.set_ylabel(yl + r"   relative to $\epsilon_s = 0$" if c == 0 else "")
+        x.set_xlim(0, 13.0); x.set_xlabel(r"chiral amplitude $\epsilon_s$"); x.set_ylabel(yl + r"   relative to $\epsilon_s = 0$" if c == 0 else "")
         x.text(0.04, 0.95, rf"({'abcdefghi'[3 * r + c]}) {name.split(' ')[0]},  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top", fontsize=9, color=INK)
     for c in range(len(SCs)):
         ax[r, c].set_ylim(-1.5 * ymax, 1.5 * ymax)
