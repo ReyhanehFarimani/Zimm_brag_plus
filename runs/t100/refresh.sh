@@ -8,5 +8,6 @@ echo "running zimm: $(pgrep -c -x zimm)   jscan_eps: $(grep -l summary jscan_eps
 (cd jscan_sigc && $PY analyze_plot.py > analyze_plot.out 2>&1; grep -E "^range scan|^== |sigma_c = |RMS z|at the largest|Traceback|Error" analyze_plot.out)
 echo "--- cells beyond 3 sigma in the range scan:"
 grep -oE "J = [0-9]: .*" jscan_sigc/analyze_plot.out | grep -E "\[[+-]([3-9]|[1-9][0-9])\.[0-9]\]" | head -10 || true
+(cd jscan_sigc && $PY plot_transitions.py > plot_transitions.out 2>&1; head -1 plot_transitions.out)
 [ -n "$WITH_EPS" ] && (cd jscan_eps && $PY plot_transitions.py > plot_transitions.out 2>&1; head -1 plot_transitions.out)
 exit 0
