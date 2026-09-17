@@ -19,7 +19,7 @@
 #   NPROC to add workers to a live batch.  After a kill, remove logs/*.lock of unfinished runs to resume.
 cd "$(dirname "$0")"
 BIN=${BIN:-../../../zimm}
-JS=${JS:-"1 2 3 4 4.5 5 5.5 6"}     # 4.5, 5.5 added 2026-09-17 around the handedness crossover (exact J* = 4.19 at N = 200)
+JS=${JS:-"1 2 3 3.5 4 4.5 5 5.5 6"}     # 3.5, 4.5, 5.5 added 2026-09-17 around the handedness crossover (exact J* = 4.19 at N = 200)
 ESS=${ESS:-"0 1 3 4 7 8"}
 SEEDS=${SEEDS:-"1 2 3"}
 NEQ=${NEQ:-100000}
