@@ -92,6 +92,7 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "hf_eps_s")   return parse(val, in.hf_eps_s);
     if (key == "hf_len")     return parse(val, in.hf_len);
     if (key == "hf_clamp")   return parse(val, in.hf_clamp);
+    if (key == "hf_sig_c")   return parse(val, in.hf_sig_c);
     if (key == "nl_skin")    return parse(val, in.nl_skin);
     if (key == "rod_L")     return parse(val, in.rod_L);
     if (key == "rod_r")      return parse(val, in.rod_r);
@@ -170,6 +171,9 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.nb_hh == "fit" && in.hf_theta0 != 100 && in.hf_theta0 != 45) {
         std::fprintf(stderr, "input: hf_theta0 must be 100 or 45\n"); ok = false;
     }
+    if (in.nb_hh == "fit" && in.hf_sig_c < 0.0) {
+        std::fprintf(stderr, "input: hf_sig_c must be >= 0 (0 = campaign median)\n"); ok = false;
+    }
     if (in.nb_hh == "fit" && in.hf_len <= 0.0) {
         std::fprintf(stderr, "input: hf_len must be > 0\n"); ok = false;
     }
@@ -225,8 +229,10 @@ void print_input(const Input& in) {
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);
     if (in.nb_hh == "fit")
-        std::printf("# hf          = theta0 %d, scale %g, eps_s %g, len %g (code units per a), clamp %d\n",
-                    in.hf_theta0, in.hf_scale, in.hf_eps_s, in.hf_len, in.hf_clamp);
+        std::printf("# hf          = theta0 %d, scale %g, eps_s %g, len %g (code units per a), clamp %d, sig_c %g a%s\n",
+                    in.hf_theta0, in.hf_scale, in.hf_eps_s, in.hf_len, in.hf_clamp,
+                    in.hf_sig_c > 0.0 ? in.hf_sig_c : (in.hf_theta0 == 45 ? 0.51 : 0.70),
+                    in.hf_sig_c > 0.0 ? "" : " (campaign median)");
     std::printf("# nl_skin     = %g%s\n", in.nl_skin, in.nl_skin > 0.0 ? "" : "  (neighbour list off)");
     std::printf("# rod         = L %g, r %g  (D = %g, L/D = %g)\n", in.rod_L, in.rod_r, 2 * in.rod_r, in.rod_L / (2 * in.rod_r));
     std::printf("# seed        = %lu\n",  in.seed);

@@ -210,7 +210,7 @@ double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2,
                    + hf_quad(c.a2, S, D) * std::cos(2.0 * psi);
     // chiral sector: inside the fitted domain only (hf_clamp = 1), or extrapolated (0)
     double Sc = S, Dc = D, Ic;
-    const double sig_c = hf_sig_c(in.hf_theta0);
+    const double sig_c = in.hf_sig_c > 0.0 ? in.hf_sig_c : hf_sig_c(in.hf_theta0);   // input overrides the median
     if (in.hf_clamp) {
         const double c1 = hf_clamp(e1, -HF_EMAX, HF_EMAX), c2 = hf_clamp(e2, -HF_EMAX, HF_EMAX);
         Sc = c1 + c2; Dc = c1 - c2;

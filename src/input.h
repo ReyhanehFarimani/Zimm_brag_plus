@@ -154,11 +154,17 @@ struct Input {
     //               [1.5, 2.5] a and shifted to vanish at 2.5 a (continuous: constant inside 1.5 a, zero
     //               beyond 2.5 a).  The narrow chiral radial factor otherwise outgrows the achiral one
     //               when extrapolated inward.  0 = extrapolate the fitted form everywhere (legacy).
+    //   hf_sig_c  : radial width (RANGE) of the chiral sector in units of a; 0 (default) = the campaign
+    //               family median (0.70 a for theta0 = 100, 0.51 a for 45). The chiral force is normalised
+    //               to eps_s C at r0 = 1.7 a for every width; a larger width lets it decay more slowly
+    //               outward. Weakly constrained by the data (t100: 5 families, median 0.70, weighted
+    //               mean 0.46, spread 0.26 a). The eps_s at which attraction first appears depends on it.
     int    hf_theta0 = 100;
     double hf_scale  = 1.0;
     double hf_eps_s  = 1.0;
     double hf_len    = 1.0;
     int    hf_clamp  = 1;
+    double hf_sig_c  = 0.0;
 
     // Verlet neighbour list for the non-bonded energy. nl_skin = total skin width (code units):
     //   < 0 = automatic (4 sqrt(3) max_disp: a single displacement never exceeds half of it), 0 = off
