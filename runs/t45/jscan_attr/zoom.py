@@ -58,8 +58,15 @@ for i, (k, yl) in enumerate(PAN):
         X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt=MRK[e] + "-", ms=5, lw=1.2, color=COL[e], mfc=COL[e], mec=SURF, mew=0.5, elinewidth=0.9, label=LAB[e], zorder=3 + n)
     x.set_xlim(JLO - 0.15, JHI + 0.15); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
     x.text(0.04, 0.94, f"({'abcdef'[i]})", transform=x.transAxes, va="top", fontsize=9, color=INK)
-DIF = [("th", r"$\theta(\epsilon_s) - \theta(0)$"), ("am", r"$\langle|m|\rangle(\epsilon_s) - \langle|m|\rangle(0)$"), ("rg2", r"$\Delta\langle R_g^2\rangle / \langle R_g^2\rangle$  [%]")]
+DIF = [("am", r"$\langle|m|\rangle(\epsilon_s) - \langle|m|\rangle(0)$"), ("rg2", r"$\Delta\langle R_g^2\rangle / \langle R_g^2\rangle$  [%]"), ("enb", r"$\langle E_{nb}\rangle(\epsilon_s) - \langle E_{nb}\rangle(0)$  [$k_BT$]")]
+DIF_TEXT = [("th", "helicity"), ("am", "<|m|>"), ("rg2", "Rg2 [%]"), ("enb", "E_nb [kT]")]
 ROWS = {}
+for k, _ in DIF_TEXT:                                  # differences for the printed table (helicity too, although it is not drawn)
+    for e in EPS[1:]:
+        for J in Js:
+            if (J, e) in runs and (J, 0.0) in runs:
+                v, er, nn = cell((J, e), k); v0, e0, n0 = cell((J, 0.0), k); sc = 100 / v0 if k == "rg2" else 1.0
+                ROWS.setdefault((k, e), []).append((J, (v - v0) * sc, np.hypot(er, e0) * sc, nn))
 for i, (k, yl) in enumerate(DIF):
     x = ax[2, i]; x.axhline(0, color=MUTED, lw=0.8)
     for n, e in enumerate(EPS[1:]):
@@ -67,7 +74,7 @@ for i, (k, yl) in enumerate(DIF):
         for J in Js:
             if (J, e) in runs and (J, 0.0) in runs:
                 v, er, nn = cell((J, e), k); v0, e0, n0 = cell((J, 0.0), k); sc = 100 / v0 if k == "rg2" else 1.0
-                pts.append((J + (n - 1) * 0.03, (v - v0) * sc, np.hypot(er, e0) * sc)); ROWS.setdefault((k, e), []).append((J, (v - v0) * sc, np.hypot(er, e0) * sc, nn))
+                pts.append((J + (n - 1) * 0.03, (v - v0) * sc, np.hypot(er, e0) * sc))
         if not pts: continue
         X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt=MRK[e] + "-", ms=5, lw=1.2, color=COL[e], mfc=COL[e], mec=SURF, mew=0.5, elinewidth=0.9, zorder=3 + n)
     x.set_xlim(JLO - 0.15, JHI + 0.15); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl + r"   (difference to $\epsilon_s = 0$)")
@@ -77,7 +84,7 @@ h, l = ax[0, 0].get_legend_handles_labels(); fig.legend(h, l, loc="center left",
 fig.tight_layout(rect=(0, 0, 0.83, 1)); fig.savefig("zoom_transition.png", dpi=150); fig.savefig("zoom_transition.pdf")
 
 print(f"zoom J = {JLO} .. {JHI}: finished runs per eps_s: " + ", ".join(f"{e:g}: {sum(len(v) for kk, v in runs.items() if kk[1] == e)}" for e in EPS))
-for k, nm in (("th", "helicity"), ("am", "<|m|>"), ("rg2", "Rg2 [%]")):
+for k, nm in DIF_TEXT:
     for e in EPS[1:]:
         if (k, e) not in ROWS: continue
         r = ROWS[(k, e)]; zz = np.array([d / er for (_, d, er, _) in r])
