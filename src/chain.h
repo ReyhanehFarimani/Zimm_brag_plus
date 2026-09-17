@@ -71,6 +71,22 @@ public:
     std::vector<State> state;
     std::vector<Vec3>  pos;
 
+    // Verlet neighbour list for the non-bonded energy (built and used in pair_potential.cpp).
+    // Invariant while !dirty: every bead is within skin/2 of its position at the last build (ref), so
+    // every pair closer than the largest cutoff is listed. A move that would break the invariant takes
+    // the all-pairs path and, if accepted, marks the list dirty (it is rebuilt on its next use).
+    struct NeighbourList {
+        bool   on = false;
+        bool   dirty = true;
+        double rc_max2 = 0.0;                      // (largest pair cutoff)^2
+        double r_list2 = 0.0;                      // (largest pair cutoff + skin)^2
+        double half_skin2 = 0.0;                   // (skin / 2)^2
+        long   n_build = 0;
+        std::vector<Vec3> ref;
+        std::vector<std::vector<int> > nbrs;       // per bead, ascending, only |i-j| > 1
+    };
+    mutable NeighbourList nl;
+
 private:
     int N_;
     const Input& in_;

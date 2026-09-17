@@ -45,11 +45,24 @@ bool nb_anisotropic(const Input& in);
 // true if the pair energy depends on the helix handedness (nb_hh = fit): state moves that
 // change R <-> L, including domain flips, must then recompute the non-bonded energy
 bool nb_chiral(const Input& in);
+// largest distance at which any pair energy can be non-zero (iso cutoff, Gay-Berne reach, fit cutoff)
+double nb_cutoff_max(const Input& in);
+
+// ---- Verlet neighbour list (Chain::nl): changes the cost only, never the energies ----
+// true if the list is switched on; rebuilds it first when it is dirty
+bool nl_ready(const Chain& chain);
+// true if the list stays valid with bead i at position p (within skin/2 of its reference position)
+bool nl_covers(const Chain& chain, int i, const Vec3& p);
+inline void nl_invalidate(const Chain& chain) { chain.nl.dirty = true; }
+// consistency check: every pair closer than the largest cutoff is in the list (always true if off)
+bool nl_verify(const Chain& chain);
+
 // energy of all pairs involving bead i (|i-j| > 1)
 double nb_bead_energy(const Chain& chain, int i);
 // energy of all pairs that can change when bead i moves: pairs involving beads i-1, i, i+1 when the
-// interaction depends on the tangents, pairs involving bead i otherwise
-double nb_local_energy(const Chain& chain, int i);
+// interaction depends on the tangents, pairs involving bead i otherwise.
+// use_list = false forces the all-pairs loop (for a trial position the list does not cover)
+double nb_local_energy(const Chain& chain, int i, bool use_list = true);
 // energy of all pairs (a, b) with a <= i <= b and b - a > 1: the pairs that change when the chain beyond
 // bead i is rotated rigidly about it (tangents of the tail rotate rigidly, the tangent at i does not)
 double nb_pivot_energy(const Chain& chain, int i);

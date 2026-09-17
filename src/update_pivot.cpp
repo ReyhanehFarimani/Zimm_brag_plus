@@ -21,7 +21,9 @@ bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     for (int k = i + 1; k < N; ++k) chain.pos[k] = pivot + rotate(chain.pos[k] - pivot, axis, ang);
 
     const double dE = bend_energy(chain, i) + nb_pivot_energy(chain, i) - e_old;
-    if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
+    // a pivot moves the whole tail by arbitrary distances: its energy is an all-pairs sum (nb_pivot_energy
+    // does not use the neighbour list) and an accepted pivot invalidates the list
+    if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) { nl_invalidate(chain); return true; }
     std::copy(old_tail.begin(), old_tail.end(), chain.pos.begin() + i + 1);   // rejected: restore
     return false;
 }

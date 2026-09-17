@@ -33,6 +33,11 @@ void Logger::header() {
 }
 
 void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
+    // guard: the neighbour list must contain every interacting pair (E_nb below is an all-pairs sum)
+    if (!nl_verify(chain)) {
+        std::fprintf(stderr, "error: neighbour list inconsistent at sweep %ld\n", sweep);
+        std::exit(EXIT_FAILURE);
+    }
     const int    nR  = chain.count(State::R);
     const int    nL  = chain.count(State::L);
     const double th  = chain.helicity();
@@ -96,5 +101,6 @@ void Logger::summary(const Chain& chain, const MC& mc) {
     std::printf("# acc_hinge      = %.4f\n", mc.acc_hinge());
     std::printf("# acc_pivot      = %.4f\n", mc.acc_pivot());
     std::printf("# acc_flip       = %.4f\n", mc.acc_flip());
+    std::printf("# nl_builds      = %ld\n", chain.nl.n_build);
     std::printf("# -----------------\n");
 }

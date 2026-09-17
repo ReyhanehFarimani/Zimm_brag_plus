@@ -33,11 +33,20 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
             e += bend_energy(chain, j);
         }
         if (nb_chiral(in)) {
-            for (int k = a; k <= b; ++k)
+            const bool list = nl_ready(chain);                     // the geometry does not change in this move
+            for (int k = a; k <= b; ++k) {
+                if (list) {
+                    for (int j : chain.nl.nbrs[k]) {
+                        if (j >= a && j <= b) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
+                        e += nb_pair_energy(chain, k, j);
+                    }
+                    continue;
+                }
                 for (int j = 0; j < N; ++j) {
                     if (j >= a && j <= b) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
                     if (j < k - 1 || j > k + 1) e += nb_pair_energy(chain, k, j);
                 }
+            }
         }
         return e;
     };

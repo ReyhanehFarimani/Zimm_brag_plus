@@ -149,10 +149,21 @@ struct Input {
     //               0 = racemic reference, 1 = as measured)
     //   hf_len    : code-units length of one campaign length unit a
     //               (a = rod_L / L_block, L_block = 4.305 a (t100), 2.044 a (t45))
+    //   hf_clamp  : 1 (default) = the CHIRAL sector is evaluated only inside the fitted domain: its
+    //               angular maps at e1, e2 clamped to [-0.5, 0.5], its radial factor at r clamped to
+    //               [1.5, 2.5] a and shifted to vanish at 2.5 a (continuous: constant inside 1.5 a, zero
+    //               beyond 2.5 a).  The narrow chiral radial factor otherwise outgrows the achiral one
+    //               when extrapolated inward.  0 = extrapolate the fitted form everywhere (legacy).
     int    hf_theta0 = 100;
     double hf_scale  = 1.0;
     double hf_eps_s  = 1.0;
     double hf_len    = 1.0;
+    int    hf_clamp  = 1;
+
+    // Verlet neighbour list for the non-bonded energy. nl_skin = total skin width (code units):
+    //   < 0 = automatic (4 sqrt(3) max_disp: a single displacement never exceeds half of it), 0 = off
+    //   (all-pairs loops). The list changes the cost only, the energies are identical.
+    double nl_skin   = -1.0;
 
     // rod geometry written to the trajectory for helical residues (coil residues are spheres of radius rod_r)
     double rod_L = 2.5;               // rod length

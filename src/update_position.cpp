@@ -38,10 +38,17 @@ bool try_position_move(Chain& chain, int i, const Input& in, std::mt19937_64& rn
     double dE = local_energy(chain, i, new_p) - local_energy(chain, i, old_p);
     // non-bonded part: apply the move tentatively (the tangents of i-1, i, i+1 depend on pos[i])
     if (in.nb_type[0] != 'n') {
-        const double e_nb_old = nb_local_energy(chain, i);
+        // the neighbour list is exact for both configurations only if the trial position keeps bead i
+        // within skin/2 of its reference; otherwise this move uses the all-pairs loop and, if accepted,
+        // the list is rebuilt
+        const bool use_list = nl_covers(chain, i, new_p);
+        const double e_nb_old = nb_local_energy(chain, i, use_list);
         chain.pos[i] = new_p;
-        dE += nb_local_energy(chain, i) - e_nb_old;
-        if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
+        dE += nb_local_energy(chain, i, use_list) - e_nb_old;
+        if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) {
+            if (!use_list) nl_invalidate(chain);
+            return true;
+        }
         chain.pos[i] = old_p;
         return false;
     }

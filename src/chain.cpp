@@ -1,11 +1,18 @@
 #include "chain.h"
+#include "pair_potential.h"
 
 #include <algorithm>
 #include <cmath>
 #include <random>
 
 Chain::Chain(const Input& in)
-    : state(in.N, State::Coil), pos(in.N), N_(in.N), in_(in), pair_keyed_bends_(in.bend_key == "pair") {}
+    : state(in.N, State::Coil), pos(in.N), N_(in.N), in_(in), pair_keyed_bends_(in.bend_key == "pair") {
+    const double rc = nb_cutoff_max(in);
+    nl.rc_max2    = rc * rc;
+    nl.on         = in.nb_type != "none" && in.nl_skin > 0.0;
+    nl.r_list2    = (rc + in.nl_skin) * (rc + in.nl_skin);
+    nl.half_skin2 = 0.25 * in.nl_skin * in.nl_skin;
+}
 
 void Chain::init() {
     // Own generator (offset from the MC seed) so different seeds give different starts.
@@ -38,6 +45,7 @@ void Chain::init() {
         // straight rod along z
         for (int i = 0; i < N_; ++i) pos[i] = Vec3(0.0, 0.0, i * b);
     }
+    nl.dirty = true;
 }
 
 double Chain::bend_angle(int i) const {

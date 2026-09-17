@@ -118,6 +118,10 @@ double gb_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rv
 // kT and campaign length a; code lengths are divided by in.hf_len.
 // Fitted domain: e in [-0.5, 0.5], r in [1.5, 2.5] a; the theta0 = 100
 // near-planar locking pocket is NOT in this smooth form.
+// hf_clamp = 1 (default): the chiral sector C Ic is evaluated inside that
+// domain only -- C at e1, e2 clamped to [-0.5, 0.5], Ic at r clamped to
+// [1.5, 2.5] a minus its value at 2.5 a (continuous, zero beyond 2.5 a).
+// The achiral sector A Ia is left as fitted (monotonic repulsion).
 
 struct HelixFitCoef { double a0[6], a1[6], a2[6], b1[6], b2[6]; };
 
@@ -151,6 +155,12 @@ namespace {
 
 const double HF_R0   = 1.7;   // reference shell [a]
 const double HF_RCUT = 3.0;   // cutoff [a]; tail there ~1e-2 kT
+// fitted domain of the campaign (hf_clamp = 1 keeps the chiral sector inside it)
+const double HF_EMAX = 0.5;   // |e1|, |e2| <= 0.5  (beta in [60, 120] deg)
+const double HF_RMIN = 1.5;   // [a]
+const double HF_RMAX = 2.5;   // [a]
+
+double hf_clamp(double x, double lo, double hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
 // family MEDIANS of the per-window radial widths (robust)
 double hf_sig_a(int th) { return th == 45 ? 0.87 : 0.93; }
@@ -180,9 +190,13 @@ double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2,
     const double P = dot(cross(u1, u2), rh);     // pseudoscalar
     double psi = std::atan2(P, x - e1 * e2);     // COLVARS psi
     int h1 = hand1, h2 = hand2;
-    if (e1 + e2 < 0.0) {                         // exchange 1 <-> 2
+    // Relabel 1 <-> 2 so that S >= 0 (the tables were fitted there). Relabelling sends rh -> -rh and
+    // u1 <-> u2, so (e1, e2) -> (-e2, -e1) and the hands swap, but psi is INVARIANT: both
+    // P = (u1 x u2).rh and u1.u2 - e1 e2 are unchanged. Only the mirror (below) flips psi.
+    // [Until 2026-09-17 psi was also flipped here, which made E(1,2) != E(2,1) whenever eps_s != 0.]
+    if (e1 + e2 < 0.0) {
         const double t = e1; e1 = -e2; e2 = -t;
-        psi = -psi; std::swap(h1, h2);
+        std::swap(h1, h2);
     }
     double chir = 1.0;
     const bool homo = (h1 == h2);
@@ -194,10 +208,20 @@ double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2,
     const double A = hf_quad(c.a0, S, D)
                    + hf_quad(c.a1, S, D) * std::cos(psi)
                    + hf_quad(c.a2, S, D) * std::cos(2.0 * psi);
-    const double C = hf_quad(c.b1, S, D) * std::sin(psi)
-                   + hf_quad(c.b2, S, D) * std::sin(2.0 * psi);
+    // chiral sector: inside the fitted domain only (hf_clamp = 1), or extrapolated (0)
+    double Sc = S, Dc = D, Ic;
+    const double sig_c = hf_sig_c(in.hf_theta0);
+    if (in.hf_clamp) {
+        const double c1 = hf_clamp(e1, -HF_EMAX, HF_EMAX), c2 = hf_clamp(e2, -HF_EMAX, HF_EMAX);
+        Sc = c1 + c2; Dc = c1 - c2;
+        Ic = hf_tail(hf_clamp(r, HF_RMIN, HF_RMAX), sig_c) - hf_tail(HF_RMAX, sig_c);
+    } else {
+        Ic = hf_tail(r, sig_c);
+    }
+    const double C = hf_quad(c.b1, Sc, Dc) * std::sin(psi)
+                   + hf_quad(c.b2, Sc, Dc) * std::sin(2.0 * psi);
     return in.hf_scale * (A * hf_tail(r, hf_sig_a(in.hf_theta0))
-                          + in.hf_eps_s * chir * C * hf_tail(r, hf_sig_c(in.hf_theta0)));
+                          + in.hf_eps_s * chir * C * Ic);
 }
 
 bool nb_anisotropic(const Input& in) {
@@ -211,32 +235,96 @@ bool nb_chiral(const Input& in) { return in.nb_type[0] != 'n' && in.nb_hh == "fi
 // (nb_hh = fit); coil-coil and helix-coil: the isotropic core
 double nb_pair_energy(const Chain& chain, int a, int b) {
     const Input& in = chain.input();
+    const Vec3 rvec = chain.pos[b] - chain.pos[a];
+    const double r2 = norm2(rvec);
+    if (r2 >= chain.nl.rc_max2) return 0.0;      // beyond every cutoff: skip the tangents
     if (is_helix(chain.state[a]) && is_helix(chain.state[b])) {
         if (in.nb_hh == "gb")
-            return gb_energy(in, chain.tangent(a), chain.tangent(b), chain.pos[b] - chain.pos[a]);
+            return gb_energy(in, chain.tangent(a), chain.tangent(b), rvec);
         if (in.nb_hh == "fit")
-            return helixfit_energy(in, chain.tangent(a), chain.tangent(b), chain.pos[b] - chain.pos[a],
+            return helixfit_energy(in, chain.tangent(a), chain.tangent(b), rvec,
                                    spin(chain.state[a]), spin(chain.state[b]));
     }
-    return nb_iso_energy(in, norm2(chain.pos[a] - chain.pos[b]));
+    return nb_iso_energy(in, r2);
+}
+
+double nb_cutoff_max(const Input& in) {
+    double rc = in.nb_rcut;
+    if (in.nb_hh == "gb")  rc = std::max(rc, in.rod_L + 0.13 * 2.0 * in.rod_r);
+    if (in.nb_hh == "fit") rc = std::max(rc, HF_RCUT * in.hf_len);
+    return rc * (1.0 + 1e-9);                    // each potential still applies its own exact cutoff
+}
+
+// ---- Verlet neighbour list ----
+// The lists are ascending and the loops below visit the pairs in the same order as the all-pairs
+// loops; the pairs left out contribute exactly 0, so both paths give bit-identical sums.
+bool nl_ready(const Chain& chain) {
+    Chain::NeighbourList& nl = chain.nl;
+    if (!nl.on) return false;
+    if (!nl.dirty) return true;
+    const int N = chain.N();
+    nl.ref = chain.pos;
+    nl.nbrs.resize(N);
+    for (int i = 0; i < N; ++i) nl.nbrs[i].clear();
+    for (int i = 0; i < N; ++i)
+        for (int j = i + 2; j < N; ++j)
+            if (norm2(chain.pos[j] - chain.pos[i]) < nl.r_list2) { nl.nbrs[i].push_back(j); nl.nbrs[j].push_back(i); }
+    nl.dirty = false;
+    ++nl.n_build;
+    return true;
+}
+
+bool nl_covers(const Chain& chain, int i, const Vec3& p) {
+    if (!nl_ready(chain)) return false;
+    return norm2(p - chain.nl.ref[i]) <= chain.nl.half_skin2;
+}
+
+bool nl_verify(const Chain& chain) {
+    if (!nl_ready(chain)) return true;
+    const Chain::NeighbourList& nl = chain.nl;
+    const int N = chain.N();
+    for (int i = 0; i < N; ++i) {
+        if (norm2(chain.pos[i] - nl.ref[i]) > nl.half_skin2) return false;          // the invariant itself
+        for (int j = i + 2; j < N; ++j)
+            if (norm2(chain.pos[j] - chain.pos[i]) < nl.rc_max2
+                && !std::binary_search(nl.nbrs[i].begin(), nl.nbrs[i].end(), j)) return false;
+    }
+    return true;
 }
 
 double nb_bead_energy(const Chain& chain, int i) {
     if (chain.input().nb_type[0] == 'n') return 0.0;
     double e = 0.0;
+    if (nl_ready(chain)) {
+        for (int j : chain.nl.nbrs[i]) e += nb_pair_energy(chain, i, j);
+        return e;
+    }
     const int N = chain.N();
     for (int j = 0; j < N; ++j)
         if (j < i - 1 || j > i + 1) e += nb_pair_energy(chain, i, j);
     return e;
 }
 
-double nb_local_energy(const Chain& chain, int i) {
+double nb_local_energy(const Chain& chain, int i, bool use_list) {
     const Input& in = chain.input();
     if (in.nb_type[0] == 'n') return 0.0;
-    if (!nb_anisotropic(in)) return nb_bead_energy(chain, i);
     const int N = chain.N();
     const int lo = std::max(0, i - 1), hi = std::min(N - 1, i + 1);
     double e = 0.0;
+    if (use_list && nl_ready(chain)) {
+        if (!nb_anisotropic(in)) return nb_bead_energy(chain, i);
+        for (int a = lo; a <= hi; ++a)
+            for (int b : chain.nl.nbrs[a]) {
+                if (b >= lo && b <= hi) { if (b > a + 1) e += nb_pair_energy(chain, a, b); continue; }   // inside the window: once
+                e += nb_pair_energy(chain, a, b);
+            }
+        return e;
+    }
+    if (!nb_anisotropic(in)) {
+        for (int j = 0; j < N; ++j)
+            if (j < i - 1 || j > i + 1) e += nb_pair_energy(chain, i, j);
+        return e;
+    }
     for (int a = lo; a <= hi; ++a) {
         for (int b = 0; b < N; ++b) {
             if (b >= lo && b <= hi) { if (b > a + 1) e += nb_pair_energy(chain, a, b); continue; }   // inside the window: once
