@@ -120,6 +120,24 @@ Approximations made to reach the compact form with one A' and one C':
 Not tested: no number in section 4 has been checked against a simulation. Test = the pair free energy of two
 blocks with shifted phi0 (umbrella, or rigid 7-bead fragments as a first estimate).
 
+### Direct route (no finite differences, no second campaign)
+
+The pair potential is a free energy at fixed pair coordinates xi = (r, e1, e2, psi). For any parameter lambda of H:
+
+    dU(xi)/dlambda = < dH/dlambda >_xi  -  < dH/dlambda >_infinity
+
+    lambda = d (dihedral position of K*[1 + cos(phi - d)]):
+        dU/dd = K* sum_k [ < sin(phi_k - d) >_xi - < sin(phi_k - d) >_inf ]
+
+    lambda = delta (the chiral-monomer term itself), exact to first order in delta:
+        Delta U(xi) = - delta sum_{k in i,j} x_k w_k(xi),     w_k(xi) = < g(phi_k) >_xi - < g(phi_k) >_inf
+
+Averages in the ALREADY simulated (achiral-monomer) ensemble; only the dihedral angles per frame are needed.
+w_k is the weight of each monomer position (no sum-X approximation). Even part in psi = achiral change, odd part =
+chiral change; mirror: w_k^LL(psi) = - w_k^RR(-psi). If the blocks keep their shape on contact, w_k = 0.
+Open: noise of a small difference of averages is unknown until tried; ~1.25 % of finished windows have dumps that
+disagree with the COLVARS log (grant repo CLAUDE.md) -- must be solved before dumps give numbers.
+
 ## 5. Not covered
 
 Monomers that are themselves chiral-shaped objects (not spheres): every bead-bead contact becomes chiral,
