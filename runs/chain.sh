@@ -11,5 +11,7 @@ complete () { [ "$(grep -l summary $1/logs/J*.log 2>/dev/null | wc -l)" -ge "$(l
 wait_for () { until complete $1 && ! pgrep -x zimm > /dev/null; do sleep 30; done; echo "$(date '+%F %T') $1 complete"; }
 stage () { echo "$(date '+%F %T') start $1"; (cd $1 && NPROC=20 ./gen_run.sh > batch.log 2>&1); wait_for $1; }
 wait_for t45/jscan_sigc
-for d in t45/jscan_attr t45/jscan_N400 t100/jscan_eps t100/jscan_sigc t100/jscan_attr t45/jscan_scale t100/jscan_scale; do stage $d; done
+for d in ${STAGES:-t45/jscan_attr t45/jscan_N400 t45/jscan_scale}; do stage $d; done
+# t100 is POSTPONED (user 2026-09-17 17:50: "focus on 45 for now"). Its corrected inputs are generated and ready; to run it later:
+#   STAGES="t100/jscan_eps t100/jscan_sigc t100/jscan_attr t100/jscan_scale" ./chain.sh
 echo "$(date '+%F %T') chain finished"
