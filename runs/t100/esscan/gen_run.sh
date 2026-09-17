@@ -23,7 +23,7 @@ cat >> inputs/$b.dat <<EOT
 E_helix = $E
 hf_theta0 = 100
 hf_eps_s = $ES
-hf_len = 1.2311
+hf_len = 1.0
 n_flip = 4
 EOT
 }

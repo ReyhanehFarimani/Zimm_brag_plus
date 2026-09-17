@@ -2,7 +2,8 @@
 import os; os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # helix-helix pairs (|i-j| > 1) inside the fit cutoff (3 a = 3.693 code units) per dumped frame -- the only pairs eps_s acts on
 import glob, re, numpy as np
-RC = 3.0 * 1.2311; out = {}
+HF_LEN = 1.0   # code units per a; the archived prev_hflen1.2311 runs used 1.2311
+RC = 3.0 * HF_LEN; out = {}
 for f in sorted(glob.glob("out/J*_es*_s*_conf.xyz")):
     J = int(re.search(r"J(\d+)_", f).group(1)); L = open(f).read().split("\n"); i = 0
     while i < len(L) and L[i].strip():

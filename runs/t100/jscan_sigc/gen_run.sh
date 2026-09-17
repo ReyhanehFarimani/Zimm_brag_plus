@@ -1,4 +1,7 @@
 #!/bin/bash
+# UNITS: bonds, coil core and the fitted helix-helix potential are ALL in bead diameters a, so hf_len = 1.
+# Until 2026-09-17 these scans used hf_len = 1.2311 (= rod_L / L_block), which stretched the helix-helix potential by
+# 23 % relative to the chain; that data is archived in prev_hflen1.2311/ and superseded.
 # t100 chiral-RANGE scan, per user 2026-09-17: two chiral widths above the campaign median sigma_c = 0.70 a, each with
 # FIVE eps_s values evenly spaced up to that width's own limit (the eps_s at which a radially attractive
 # configuration first appears; 40M-configuration scan, clamped potential, all orientations):
@@ -37,7 +40,7 @@ cat >> inputs/$b.dat <<EOT
 E_helix = 0
 hf_theta0 = 100
 hf_eps_s = $ES
-hf_len = 1.2311
+hf_len = 1.0
 hf_clamp = 1
 hf_sig_c = $SC
 n_flip = 4

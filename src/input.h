@@ -147,8 +147,10 @@ struct Input {
     //   hf_scale  : overall amplitude factor
     //   hf_eps_s  : chiral amplification (multiplies the sin sector only;
     //               0 = racemic reference, 1 = as measured)
-    //   hf_len    : code-units length of one campaign length unit a
-    //               (a = rod_L / L_block, L_block = 4.305 a (t100), 2.044 a (t45))
+    //   hf_len    : how many code length units make one campaign length unit a. The parameter files
+    //               built from the measured fits (bonds, coil core) are ALREADY in a, so hf_len = 1.
+    //               [Until 2026-09-17 the t100 scans used 1.2311 = rod_L / L_block, which evaluated the
+    //               helix-helix potential on a scale stretched by 23 % relative to the chain.]
     //   hf_clamp  : 1 (default) = the CHIRAL sector is evaluated only inside the fitted domain: its
     //               angular maps at e1, e2 clamped to [-0.5, 0.5], its radial factor at r clamped to
     //               [1.5, 2.5] a and shifted to vanish at 2.5 a (continuous: constant inside 1.5 a, zero
