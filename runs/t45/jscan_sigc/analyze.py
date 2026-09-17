@@ -139,3 +139,26 @@ for J in Js:
     if (J, 0.0, None) not in runs: continue
     i = int(round((J - Jg[0]) / 0.125)); t, a = cell((J, 0.0, None), "th"), cell((J, 0.0, None), "am")
     print(f"   J = {J:g}:  {t[0]:.4f}+-{t[1]:.4f} / {E[N0]['th'][i]:.4f}    {a[0]:.4f}+-{a[1]:.4f} / {E[N0]['am'][i]:.4f}    {cell((J, 0.0, None), 'enb')[0]:.3f}")
+
+# ---------------------------------------------------------------- needs NO eps_s = 0 reference
+# (a) every finished cell against the exact 1D value (total effect of all non-bonded interactions)
+# (b) at fixed (J, sigma_c): are the eps_s values mutually consistent?  chi2/dof about their weighted mean (1 = no eps_s dependence)
+print("\n== every cell vs EXACT 1D, N = 200 (no non-bonded):  J | sigma_c | eps_s: <|m|> MC [exact] ... ;  then helicity and U4")
+for nm, k in (("<|m|>", "am"), ("theta", "th"), ("U4", "U4")):
+    print(f"  -- {nm}")
+    for J in Js:
+        i = int(round((J - Jg[0]) / 0.125)); exv = E[N0][k][i]
+        for sc in SCs:
+            ess = sorted(e for (j, e, s) in runs if j == J and s == sc)
+            if ess: print(f"     J = {J:<3g} sigma_c {sc:.2f}  exact {exv:.4f} | " + "  ".join(f"eps {e:g}: {cell((J, e, sc), k)[0]:.4f}" + (f"+-{cell((J, e, sc), k)[1]:.4f}" if cell((J, e, sc), k)[1] > 0 else "") for e in ess))
+print("\n== consistency across eps_s at fixed (J, sigma_c), block errors:  chi2/dof (1 = no eps_s dependence), over cells with >= 3 eps_s values")
+for nm, k in (("theta", "th"), ("<|m|>", "am"), ("<Rg2>", "rg2")):
+    c2, nd, worst = 0.0, 0, (0, None)
+    for J in Js:
+        for sc in SCs:
+            ess = sorted(e for (j, e, s) in runs if j == J and s == sc)
+            if len(ess) < 3: continue
+            v = np.array([cell((J, e, sc), k)[0] for e in ess]); er = np.array([cell((J, e, sc), k)[1] for e in ess]); w = 1 / er**2; mu = (w * v).sum() / w.sum()
+            x2 = (((v - mu) / er)**2).sum(); c2 += x2; nd += len(ess) - 1
+            if x2 / (len(ess) - 1) > worst[0]: worst = (x2 / (len(ess) - 1), (J, sc))
+    if nd: print(f"   {nm:6s} chi2/dof = {c2 / nd:.2f}  (dof = {nd});  worst cell: J = {worst[1][0]:g}, sigma_c = {worst[1][1]:.2f} with {worst[0]:.2f}")
