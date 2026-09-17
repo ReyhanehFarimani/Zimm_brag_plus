@@ -43,6 +43,18 @@ hf_clamp = 1
 n_flip = 4
 EOT
 done; done; done
+# CONTROL=1: the same chain with NO non-bonded interactions (nb_type = none), same moves -- must reproduce the
+# exact transfer matrix of transition.py; separates "sterics" from "MC vs exact mismatch". Names J<J>_nonb_s<s>.
+if [ -n "$CONTROL" ]; then for J in $JS; do for s in $SEEDS; do
+b=J${J}_nonb_s${s}
+[ -f inputs/$b.dat ] && continue
+sed -e "s/^J0 .*/J0          = $J/" -e "s/^J1 .*/J1          = 0/" -e "s/^J2 .*/J2          = $J/" \
+    -e 's/^nb_type.*/nb_type = none/' -e 's/^nb_hh.*/nb_hh = same/' \
+    -e "s/^n_equil.*/n_equil     = $NEQ/" -e "s/^n_sweeps.*/n_sweeps    = $NSW/" -e 's/^dump_every.*/dump_every  = 0/' \
+    -e "s/^seed .*/seed        = $((790000 + 100*J + s))/" \
+    -e "s#^out_prefix .*#out_prefix  = out/$b#" ../sample_data.dat > inputs/$b.dat
+printf "E_helix = 0\nn_flip = 4\n" >> inputs/$b.dat
+done; done; fi
 echo "inputs: $(ls inputs/J*.dat | wc -l)"
 [ -n "$GEN_ONLY" ] && exit 0
 # dispatch replica-first (a complete (J, eps_s) grid per seed), the expensive high-J runs first within a seed
