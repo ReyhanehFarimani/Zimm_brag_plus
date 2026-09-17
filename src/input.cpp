@@ -93,6 +93,7 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "hf_len")     return parse(val, in.hf_len);
     if (key == "hf_clamp")   return parse(val, in.hf_clamp);
     if (key == "hf_sig_c")   return parse(val, in.hf_sig_c);
+    if (key == "hf_eps_rl")  return parse(val, in.hf_eps_rl);
     if (key == "nl_skin")    return parse(val, in.nl_skin);
     if (key == "rod_L")     return parse(val, in.rod_L);
     if (key == "rod_r")      return parse(val, in.rod_r);
@@ -233,6 +234,8 @@ void print_input(const Input& in) {
                     in.hf_theta0, in.hf_scale, in.hf_eps_s, in.hf_len, in.hf_clamp,
                     in.hf_sig_c > 0.0 ? in.hf_sig_c : (in.hf_theta0 == 45 ? 0.51 : 0.70),
                     in.hf_sig_c > 0.0 ? "" : " (campaign median)");
+    if (in.nb_hh == "fit" && in.hf_eps_rl >= 0.0)
+        std::printf("# hf_eps_rl   = %g  (chiral amplitude of R.L pairs; hf_eps_s acts on same-handed pairs only)\n", in.hf_eps_rl);
     std::printf("# nl_skin     = %g%s\n", in.nl_skin, in.nl_skin > 0.0 ? "" : "  (neighbour list off)");
     std::printf("# rod         = L %g, r %g  (D = %g, L/D = %g)\n", in.rod_L, in.rod_r, 2 * in.rod_r, in.rod_L / (2 * in.rod_r));
     std::printf("# seed        = %lu\n",  in.seed);

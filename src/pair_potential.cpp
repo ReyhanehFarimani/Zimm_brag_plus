@@ -220,8 +220,10 @@ double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2,
     }
     const double C = hf_quad(c.b1, Sc, Dc) * std::sin(psi)
                    + hf_quad(c.b2, Sc, Dc) * std::sin(2.0 * psi);
+    // same-handed pairs: hf_eps_s;  opposite-handed pairs: hf_eps_rl when given (>= 0), else hf_eps_s too
+    const double eps = (homo || in.hf_eps_rl < 0.0) ? in.hf_eps_s : in.hf_eps_rl;
     return in.hf_scale * (A * hf_tail(r, hf_sig_a(in.hf_theta0))
-                          + in.hf_eps_s * chir * C * Ic);
+                          + eps * chir * C * Ic);
 }
 
 bool nb_anisotropic(const Input& in) {

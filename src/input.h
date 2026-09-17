@@ -167,6 +167,10 @@ struct Input {
     double hf_len    = 1.0;
     int    hf_clamp  = 1;
     double hf_sig_c  = 0.0;
+    //   hf_eps_rl : chiral amplitude of OPPOSITE-handed (R.L) pairs; < 0 (default) = the same as hf_eps_s.
+    //               hf_eps_s then acts on same-handed pairs only: e.g. hf_eps_s = 12.2, hf_eps_rl = 1 gives a
+    //               same-handed well of -3 kT while R.L pairs keep the measured, purely repulsive potential.
+    double hf_eps_rl = -1.0;
 
     // Verlet neighbour list for the non-bonded energy. nl_skin = total skin width (code units):
     //   < 0 = automatic (4 sqrt(3) max_disp: a single displacement never exceeds half of it), 0 = off
