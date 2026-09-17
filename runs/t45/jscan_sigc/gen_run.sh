@@ -1,4 +1,6 @@
 #!/bin/bash
+# 2026-09-17 17:50, user decision "C": the exploratory range (t45 0.87 a / t100 0.93 a, not supported by the family fits) is dropped for
+# all runs not yet started, to shorten the queue; unstarted inputs moved to inputs_dropped/. SCS="..." restores it.
 # theta0 = 45 scan, per user 2026-09-17: THREE chiral ranges, FIVE eps_s each up to that range's own limit, same J.
 # The t45 potential has a ~3x stronger measured chiral sector than t100 (max 0.75 vs 0.24 kT per unit eps_s), so the
 # limits (eps_s at which a radially attractive configuration first appears; clamped potential, all orientations,
@@ -26,7 +28,7 @@ NSW=${NSW:-1000000}
 ess_of () { case $1 in 0.51) echo "0 1 1.5 2 2.5 2.9";; 0.62) echo "1 1.8 2.6 3.4 4.2";; 0.87) echo "1 2.3 3.6 4.9 6.2";; esac; }
 mkdir -p inputs out logs
 n=0
-for SC in 0.51 0.62 0.87; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
+for SC in ${SCS:-"0.51 0.62"}; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
 n=$((n+1))                                   # the seed depends on (SC, J, ES, s) only, not on SEEDS
 case " $SEEDS " in *" $s "*) ;; *) continue;; esac
 b=J${J}_es${ES}_sc${SC}_s${s}; [ "$ES" = 0 ] && b=J${J}_es0_sc0_s${s}      # eps_s = 0: the range is irrelevant

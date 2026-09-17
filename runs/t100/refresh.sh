@@ -12,7 +12,7 @@ echo "t100 (hf_len = 1 re-run; the hf_len = 1.2311 data is in prev_hflen1.2311/)
 echo "--- t100 cells beyond 3 sigma in the range scan:"
 [ "$NSIG" -gt 0 ] && grep -oE "J = [0-9]: .*" jscan_sigc/analyze_plot.out | grep -E "\[[+-]([3-9]|[1-9][0-9])\.[0-9]\]" | head -10 || true
 [ "$NSIG" -gt 0 ] && (cd jscan_sigc && $PY plot_transitions.py > plot_transitions.out 2>&1; head -1 plot_transitions.out)
-echo "=================== theta0 = 45 scan (../t45/jscan_sigc): finished $(grep -l summary ../t45/jscan_sigc/logs/J*.log 2>/dev/null | wc -l)/$(ls ../t45/jscan_sigc/inputs/J*.dat 2>/dev/null | wc -l), workers t100/t45: $(ls -d jscan_sigc/logs/*.lock 2>/dev/null | wc -l)/$(ls -d ../t45/jscan_sigc/logs/*.lock 2>/dev/null | wc -l), errors: $(grep -l -i error ../t45/jscan_sigc/logs/J*.log 2>/dev/null | wc -l)"
+echo "=================== theta0 = 45 scan (../t45/jscan_sigc): finished $(grep -l summary ../t45/jscan_sigc/logs/J*.log 2>/dev/null | wc -l)/$(ls ../t45/jscan_sigc/inputs/J*.dat 2>/dev/null | wc -l), running t45 sigc/attr: $(find ../t45/jscan_sigc/logs -maxdepth 1 -name "*.lock" ! -exec test -e {}/DROPPED ; -print 2>/dev/null | wc -l)/$(ls -d ../t45/jscan_attr/logs/*.lock 2>/dev/null | wc -l), errors: $(grep -l -i error ../t45/jscan_sigc/logs/J*.log 2>/dev/null | wc -l)"
 (cd ../t45/jscan_sigc && $PY analyze.py > analyze.out 2>&1; grep -E "^t45 scan|^== |RMS z|Traceback|Error" analyze.out; sed -n '/MC vs exact/,$p' analyze.out
  echo "--- t45 cells beyond 3 sigma:"; grep -oE "sigma_c [0-9.]+  J = [0-9]: .*" analyze.out | grep -E "\[[+-]([3-9]|[1-9][0-9])\.[0-9]\]" | head -10 || true)
 exit 0

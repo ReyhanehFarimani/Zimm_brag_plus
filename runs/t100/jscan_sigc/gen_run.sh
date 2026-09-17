@@ -1,4 +1,6 @@
 #!/bin/bash
+# 2026-09-17 17:50, user decision "C": the exploratory range (t45 0.87 a / t100 0.93 a, not supported by the family fits) is dropped for
+# all runs not yet started, to shorten the queue; unstarted inputs moved to inputs_dropped/. SCS="..." restores it.
 # UNITS: bonds, coil core and the fitted helix-helix potential are ALL in bead diameters a, so hf_len = 1.
 # Until 2026-09-17 these scans used hf_len = 1.2311 (= rod_L / L_block), which stretched the helix-helix potential by
 # 23 % relative to the chain; that data is archived in prev_hflen1.2311/ and superseded.
@@ -23,7 +25,7 @@ NSW=${NSW:-1000000}
 ess_of () { case $1 in 0.80) echo "1.75 3.5 5.25 7 8.75";; 0.93) echo "2 4 6 8 10";; esac; }
 mkdir -p inputs out logs
 n=0
-for SC in 0.80 0.93; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
+for SC in ${SCS:-"0.80"}; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
 n=$((n+1))                                   # the seed depends on (SC, J, ES, s) only, not on SEEDS
 case " $SEEDS " in *" $s "*) ;; *) continue;; esac
 b=J${J}_es${ES}_sc${SC}_s${s}
