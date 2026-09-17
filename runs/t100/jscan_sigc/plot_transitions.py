@@ -37,7 +37,7 @@ def load(folder, pattern, rx, fixed_sc=None):
         g = re.search(rx, os.path.basename(log)).groups()
         key = (float(g[0]), "ctrl", None) if fixed_sc == "ctrl" else (float(g[0]), float(g[1]), float(g[2]) if fixed_sc is None else fixed_sc)
         o = read_obs(os.path.join(folder, "out", os.path.basename(log)[:-4] + "_obs.dat")); m = (o["n_R"] - o["n_L"]) / N0
-        out.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)),
+        out.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)), rg2=o["Rg2"].mean(), e_rg2=blk(o["Rg2"]),
                                             chi_th=N0 * o["helicity"].var(), U4=1 - (m**4).mean() / (3 * (m**2).mean()**2)))
     return out
 runs = load("../jscan_eps", "J*_es*_s*.log", r"J([\d.]+)_es(\d+)_s(\d+)", fixed_sc=0.70)
@@ -77,6 +77,24 @@ for r, sc in enumerate(SCs):
         if k == "am": x.legend(loc="upper left", bbox_to_anchor=(0.0, 0.89), handletextpad=0.3, labelspacing=0.35, title="MC, N = 200", title_fontsize=8)
 ax[0, 0].legend(loc="lower right")
 fig.tight_layout(); fig.savefig("transitions_range.png", dpi=150); fig.savefig("transitions_range.pdf")
+
+# ---------------------------------------------------------------- second figure: NO exact curves -- one line per eps_s across J
+COLS5 = COLS + (("rg2", r"chain size $\langle R_g^2 \rangle$ [$a^2$]"),)
+fig, ax = plt.subplots(len(SCs), 5, figsize=(19.5, 4.1 * len(SCs)), squeeze=False)
+for r, sc in enumerate(SCs):
+    ess = [0.0] + sorted({k[1] for k in runs if k[2] == sc and k[1] != 0.0}); col = {e: RAMP_E[min(i, 5)] for i, e in enumerate(ess)}
+    for c, (k, yl) in enumerate(COLS5):
+        x = ax[r, c]
+        for e in ess:
+            pts = [(J,) + cell((J, e, 0.70 if e == 0.0 else sc), k) for J in Js if (J, e, 0.70 if e == 0.0 else sc) in runs]
+            if not pts: continue
+            X, V, Er = map(np.array, zip(*pts))
+            x.errorbar(X, V, yerr=Er, fmt="o-", ms=4.5, lw=1.4, color=col[e], mfc=col[e], mec=SURF, mew=0.5, elinewidth=0.9, zorder=3 + ess.index(e), label=rf"$\epsilon_s$ = {e:g}")
+        x.set_xlim(0.5, 6.5); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
+        tx, ty, ha = {"th": (0.96, 0.10, "right"), "chi_th": (0.96, 0.94, "right"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.94, "left"), "rg2": (0.04, 0.94, "left")}[k]
+        x.text(tx, ty, rf"({'abcdefghijklmno'[5 * r + c]})  $\theta_0$ = 100,  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top" if ty > 0.5 else "bottom", ha=ha, fontsize=9, color=INK)
+        if k == "am": x.legend(loc="upper left", bbox_to_anchor=(0.0, 0.89), handletextpad=0.4, labelspacing=0.35, title="MC, N = 200", title_fontsize=8)
+fig.tight_layout(); fig.savefig("eps_lines_range.png", dpi=140); fig.savefig("eps_lines_range.pdf"); plt.close(fig)
 
 nfin = sum(len(v) for v in new.values())
 print(f"transitions_range: {nfin} / {len(glob.glob('inputs/J*.dat'))} range-scan runs finished;  rows: sigma_c = {SCs}")

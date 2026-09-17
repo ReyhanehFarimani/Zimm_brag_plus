@@ -99,6 +99,24 @@ for r, sc in enumerate(SCs):
         if k == "am": x.legend(loc="upper left", bbox_to_anchor=(0.0, 0.89), handletextpad=0.3, labelspacing=0.35, title="MC, N = 200", title_fontsize=8)
 ax[0, 0].legend(loc="lower right"); fig.tight_layout(); fig.savefig("transitions_t45.png", dpi=150); fig.savefig("transitions_t45.pdf"); plt.close(fig)
 
+# ---------------------------------------------------------------- figure 1b: NO exact curves -- one line per eps_s across J
+COLS5 = COLS + (("rg2", r"chain size $\langle R_g^2 \rangle$ [$a^2$]"),)
+fig, ax = plt.subplots(len(SCs), 5, figsize=(19.5, 4.1 * len(SCs)), squeeze=False)
+for r, sc in enumerate(SCs):
+    ess = [0.0] + sorted({k[1] for k in runs if k[2] == sc}); col = {e: RAMP_E[min(i, 5)] for i, e in enumerate(ess)}
+    for c, (k, yl) in enumerate(COLS5):
+        x = ax[r, c]
+        for e in ess:
+            pts = [(J,) + cell(kk(J, e, sc), k)[:2] for J in Js if kk(J, e, sc) in runs]
+            if not pts: continue
+            X, V, Er = map(np.array, zip(*pts))
+            x.errorbar(X, V, yerr=Er, fmt="o-", ms=4.5, lw=1.4, color=col[e], mfc=col[e], mec=SURF, mew=0.5, elinewidth=0.9, zorder=3 + ess.index(e), label=rf"$\epsilon_s$ = {e:g}")
+        x.set_xlim(0.5, 6.5); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
+        tx, ty, ha = {"th": (0.96, 0.10, "right"), "chi_th": (0.96, 0.94, "right"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.94, "left"), "rg2": (0.04, 0.94, "left")}[k]
+        x.text(tx, ty, rf"({'abcdefghijklmno'[5 * r + c]})  $\theta_0$ = 45,  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top" if ty > 0.5 else "bottom", ha=ha, fontsize=9, color=INK)
+        if k == "am": x.legend(loc="upper left", bbox_to_anchor=(0.0, 0.89), handletextpad=0.4, labelspacing=0.35, title="MC, N = 200", title_fontsize=8)
+fig.tight_layout(); fig.savefig("eps_lines_t45.png", dpi=140); fig.savefig("eps_lines_t45.pdf"); plt.close(fig)
+
 # ---------------------------------------------------------------- figure 2: relative change vs eps_s
 KEYS = (("th", r"$\Delta\theta/\theta$  [%]", "helicity"), ("am", r"$\Delta\langle|m|\rangle/\langle|m|\rangle$  [%]", "handedness <|m|>"), ("rg2", r"$\Delta\langle R_g^2\rangle/\langle R_g^2\rangle$  [%]", "chain size <Rg2>"))
 fig, ax = plt.subplots(3, len(SCs), figsize=(4.2 * len(SCs), 10.5), squeeze=False); REL = {}
