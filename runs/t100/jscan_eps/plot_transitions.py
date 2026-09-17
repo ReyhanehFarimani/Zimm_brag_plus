@@ -43,14 +43,21 @@ INK, MUTED, C1, C2, SURF = "#0b0b0b", "#898781", "#2a78d6", "#eb6834", "#ffffff"
 
 Jg = np.arange(0.5, 8.001, 0.125)
 E = {N: {k: np.zeros(len(Jg)) for k in ("th", "chi_th", "am", "U4")} for N in NS}
-for N in NS:
-    m = np.arange(-N, N + 1) / N; h = np.arange(N + 1) / N
-    for i, J in enumerate(Jg):
-        pm = exact_dist(J, N); ph = exact_dist(J, N, helix=True)
-        m2, m4 = (pm * m**2).sum(), (pm * m**4).sum(); th = (ph * h).sum()
-        E[N]["am"][i] = (pm * np.abs(m)).sum(); E[N]["U4"][i] = 1 - m4 / (3 * m2 * m2)
-        E[N]["th"][i] = th; E[N]["chi_th"][i] = N * ((ph * h * h).sum() - th * th)
-th_inf = np.array([hel_inf(J) for J in Jg])
+CACHE = "exact_cache.npz"                     # the exact curves depend only on ../sample_data.dat: delete to recompute
+if os.path.exists(CACHE) and os.path.getmtime(CACHE) > os.path.getmtime("../sample_data.dat"):
+    z = np.load(CACHE); th_inf = z["th_inf"]
+    for N in NS:
+        for k in E[N]: E[N][k] = z[f"{N}_{k}"]
+else:
+    for N in NS:
+        m = np.arange(-N, N + 1) / N; h = np.arange(N + 1) / N
+        for i, J in enumerate(Jg):
+            pm = exact_dist(J, N); ph = exact_dist(J, N, helix=True)
+            m2, m4 = (pm * m**2).sum(), (pm * m**4).sum(); th = (ph * h).sum()
+            E[N]["am"][i] = (pm * np.abs(m)).sum(); E[N]["U4"][i] = 1 - m4 / (3 * m2 * m2)
+            E[N]["th"][i] = th; E[N]["chi_th"][i] = N * ((ph * h * h).sum() - th * th)
+    th_inf = np.array([hel_inf(J) for J in Jg])
+    np.savez(CACHE, th_inf=th_inf, **{f"{N}_{k}": E[N][k] for N in NS for k in E[N]})
 
 # ---------------------------------------------------------------- MC, N = 200, per (J, eps_s)
 N0 = 200
@@ -59,15 +66,17 @@ def read_obs(f):
     rows = np.array([[float(x) for x in l.split()] for l in lines if not l.startswith("#") and len(l.split()) == len(hdr)])
     return {k: rows[:, i] for i, k in enumerate(hdr)}
 def blk(x, nb=20): b = x[: len(x) // nb * nb].reshape(nb, -1).mean(1); return b.std(ddof=1) / np.sqrt(nb)
+CTRL = "nonb"                                  # key of the control: same chain and moves, NO non-bonded interactions
 runs = {}
-for log in sorted(glob.glob("logs/J*_es*_s*.log")):
+for log in sorted(glob.glob("logs/J*_es*_s*.log")) + sorted(glob.glob("logs/J*_nonb_s*.log")):
     if "summary" not in open(log).read(): continue
-    J, es, s = map(int, re.search(r"J(\d+)_es(\d+)_s(\d+)", log).groups())
+    mt = re.search(r"J(\d+)_es(\d+)_s(\d+)", log)
+    J, es = (int(mt.group(1)), int(mt.group(2))) if mt else (int(re.search(r"J(\d+)_nonb", log).group(1)), CTRL)
     o = read_obs("out/" + os.path.basename(log)[:-4] + "_obs.dat"); m = (o["n_R"] - o["n_L"]) / N0
     runs.setdefault((J, es), []).append(dict(m=m, th=o["helicity"].mean(), am=np.abs(m).mean(), rg2=o["Rg2"].mean(),
         e_th=blk(o["helicity"]), e_am=blk(np.abs(m)), e_rg2=blk(o["Rg2"]), chi_th=N0 * o["helicity"].var(),
         U4=1 - (m**4).mean() / (3 * (m**2).mean()**2), rg2_rel=o["Rg2"].std() / o["Rg2"].mean()))
-Js = sorted({k[0] for k in runs}); ESs = sorted({k[1] for k in runs})
+Js = sorted({k[0] for k in runs if k[1] != CTRL}); ESs = sorted({k[1] for k in runs if k[1] != CTRL})
 def cell(J, es, key):
     rs = runs[(J, es)]; v = np.array([r[key] for r in rs]); sem = v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0.0
     eb = np.sqrt(sum(r["e_" + key]**2 for r in rs)) / len(rs) if "e_" + key in rs[0] else 0.0
@@ -85,15 +94,23 @@ def mc_by_eps(x, key, legend=False):
         if not pts: continue
         X, V, Er = map(np.array, zip(*pts))
         x.errorbar(X, V, yerr=Er, fmt="o", ms=5, mfc=CE[es], mec=SURF, mew=0.6, ecolor=CE[es], elinewidth=0.9, zorder=5,
-                   label=rf"MC N = 200, $\epsilon_s$ = {es}" if legend else None)
+                   label=rf"$\epsilon_s$ = {es}" if legend else None)
+    # control: no non-bonded interactions at all -- must fall ON the exact N = 200 curve
+    # (drawn at its TRUE J, as a large hollow diamond behind the eps_s marks: a sideways shift would make it look
+    #  off the steep exact curves)
+    pts = [(J,) + cell(J, CTRL, key) for J in Js if (J, CTRL) in runs]
+    if pts:
+        X, V, Er = map(np.array, zip(*pts))
+        x.errorbar(X, V, yerr=Er, fmt="D", ms=9, mfc="none", mec=INK, mew=1.2, ecolor=INK, elinewidth=0.9, zorder=4,
+                   label="control: no non-bonded" if legend else None)
 def jaxis(x, yl): x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl); x.set_xlim(0.5, 8)
 
 for x, key, yl, t in ((a, "th", r"helicity $\theta$", "(a) helix–coil"), (b, "chi_th", r"$\chi_\theta = N\,\mathrm{var}(\theta)$", "(b)"),
                       (d, "am", r"handedness $\langle |m| \rangle$", "(d) handedness"), (e, "U4", r"Binder cumulant $U_4$", "(e)")):
     for N in NS: x.plot(Jg, E[N][key], color=CN[N], lw=1.8, label=f"exact 1D, N = {N}" if key == "th" else None)
     if key == "th": x.plot(Jg, th_inf, color=INK, lw=1.1, ls="--", label=r"exact 1D, N $\to\infty$")
-    mc_by_eps(x, key, legend=(key == "am")); jaxis(x, yl); tag(x, t, loc=(0.04, 0.84) if key == "U4" else (0.04, 0.94))
-a.legend(loc="lower right"); d.legend(loc="lower right")
+    mc_by_eps(x, key); jaxis(x, yl); tag(x, t, loc=(0.04, 0.84) if key == "U4" else (0.04, 0.94))
+a.legend(loc="lower right")
 e.axhline(2 / 3, color=MUTED, lw=0.8, ls=":"); e.text(0.7, 0.655, "2/3 = fully ordered", color=MUTED, fontsize=8, va="top")
 e.text(0.97, 0.05, "curves of different N never cross", transform=e.transAxes, ha="right", fontsize=8, color=INK)
 
@@ -108,14 +125,14 @@ kf = np.polyfit(np.log(NS), js_am, 1); f.set_ylim(0, 7.5); f.set_ylabel(r"crosso
 tag(f, "(f) handedness crossover drifts with N"); tag(f, rf"handedness: $J^* = {kf[1]:.2f} + {kf[0]:.2f}\,\ln N$", loc=(0.04, 0.86))
 
 mc_by_eps(g, "rg2"); g.set_ylim(0, 10500); jaxis(g, r"$\langle R_g^2 \rangle$ [code units$^2$]"); tag(g, "(g) chain size (MC only)")
-mc_by_eps(h, "rg2_rel"); h.set_ylim(0, 0.7); jaxis(h, r"std$(R_g^2)\,/\,\langle R_g^2 \rangle$"); tag(h, "(h) size fluctuation (MC only)")
+mc_by_eps(h, "rg2_rel", legend=True); h.legend(loc="lower center", ncol=3, columnspacing=1.0, handletextpad=0.3, title="MC, N = 200  (same marks in every panel)", title_fontsize=8); h.set_ylim(0, 0.7); jaxis(h, r"std$(R_g^2)\,/\,\langle R_g^2 \rangle$"); tag(h, "(h) size fluctuation (MC only)")
 
 bins = np.linspace(-1, 1, 42); ctr = 0.5 * (bins[1:] + bins[:-1]); mgrid = np.arange(-N0, N0 + 1) / N0
 nint = np.histogram(mgrid, bins=bins)[0]                       # integer M values per bin (9 or 10): density per value, no zig-zag
 for J in (3, 4, 5):
     if J not in Js: continue
     pe = np.histogram(mgrid, bins=bins, weights=exact_dist(J, N0))[0] / nint * N0
-    mm = np.concatenate([r["m"] for (jj, ee), rs in runs.items() if jj == J for r in rs]); pmc = np.histogram(mm, bins=bins)[0] / len(mm) / nint * N0
+    mm = np.concatenate([r["m"] for (jj, ee), rs in runs.items() if jj == J and ee != CTRL for r in rs]); pmc = np.histogram(mm, bins=bins)[0] / len(mm) / nint * N0
     pmc[pmc == 0] = np.nan; i_.plot(ctr, pe, color=CP[J], lw=1.8); i_.plot(ctr, pmc, "o", ms=3.5, mfc=SURF, mec=CP[J], mew=1.0)
     i_.text(0.0, pe[len(ctr) // 2] * 1.3, f"J = {J}", color=INK, fontsize=8, ha="center", va="bottom")
 i_.plot([], [], color=INK, lw=1.8, label="exact 1D, N = 200"); i_.plot([], [], "o", ms=3.5, mfc=SURF, mec=INK, label=r"MC, all $\epsilon_s$ pooled")
@@ -142,6 +159,17 @@ print(f"MC runs used: {sum(len(v) for v in runs.values())};  eps_s values: {ESs}
 print("\n     N   max dtheta/dJ   J*(theta=0.5)   max chi_theta   |  max d<|m|>/dJ   J*(<|m|>=0.5)")
 for n, N in enumerate(NS): print(f"  {N:5d}   {sl_th[n]:13.3f}   {js_th[n]:13.3f}   {E[N]['chi_th'].max():13.3f}   |  {sl_am[n]:14.3f}   {js_am[n]:13.3f}")
 print(f"  N->inf: max dtheta/dJ = {np.gradient(th_inf, Jg).max():.3f}  (finite -> crossover)")
+print("\n  WHERE DOES THE MC-vs-EXACT OFFSET COME FROM?   exact 1D N = 200  |  control (no non-bonded) [z vs exact]  |  full MC eps_s = 0 [z vs exact]")
+for key, name in (("th", "helicity"), ("am", "<|m|>")):
+    print(f"   {name}")
+    zc, zf = [], []
+    for J in Js:
+        i = int(round((J - Jg[0]) / 0.125)); exv = E[N0][key][i]; row = f"     J = {J}   {exv:8.4f}  |"
+        for kk, zz in ((CTRL, zc), (0, zf)):
+            if (J, kk) in runs: v, er = cell(J, kk, key); zz.append((v - exv) / er); row += f"   {v:8.4f} +- {er:6.4f}  [{zz[-1]:+6.1f}]  ({100 * (v - exv) / exv:+5.2f} %)  |"
+            else: row += f"{'--':>46s}  |"
+        print(row)
+    if zc: print(f"     RMS z:  control {np.sqrt(np.mean(np.square(zc))):.2f}   full MC {np.sqrt(np.mean(np.square(zf))):.2f}     (control ~ 1 => the offset is a non-bonded (steric) effect, not an MC/exact mismatch)")
 for key, name in (("th", "helicity"), ("am", "<|m|>"), ("rg2", "<Rg2>")):
     print(f"\n  relative change of {name} vs eps_s = 0, in %  (value +- error)")
     print("     J  " + "".join(f"{'eps_s=' + str(es):>18s}" for es in ESs if es != 0))

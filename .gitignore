@@ -10,3 +10,7 @@ runs/**/inputs/
 runs/**/prev_*/
 runs/**/batch.log
 runs/**/fig2_long.log
+exact_cache.npz
+*.out
+batch*.log
+make.log
