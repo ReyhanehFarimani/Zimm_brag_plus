@@ -101,6 +101,25 @@ NOT KNOWN: none of the derivatives dp/dphi0, dp/dK* has been measured. The two c
 differ in theta0, not in the dihedral. In this picture the corrections cannot be written as numbers
 without a new umbrella measurement at shifted phi0.
 
+### Limits of section 4 (what is rigorous and what is not)
+
+Rigorous: (i) the symmetry relations; (ii) that a first-order term exists, is linear in each x_k and carries
+the factor s (perturbation theory in delta, smooth dependence of the pair free energy on the block shape);
+(iii) the helix geometry Omega, d, rho from theta0, phi0 (checked against an explicitly built chain).
+
+Approximations made to reach the compact form with one A' and one C':
+  - the SUM X_i is used. Exactly, the first-order change is  eps_d s_i sum_k x_k A'_k  with a different weight
+    A'_k for each of the 7 monomer positions in the block (a dihedral in the middle of the block and one at its
+    end deform the block differently). A' = mean of A'_k is exact only if all positions weigh the same.
+    (For the on-site term the sum IS exact: every monomer contributes -h s x_k independently.)
+  - dihedrals span 4 beads and straddle block boundaries; assigning each to one block is a choice.
+  - the radial widths sigma_a, sigma_c also depend on the shape, so I_a and I_c change too (omitted above).
+  - harmonic, stiff wells (K* = 100) are assumed for the size of the shift.
+  - spherical beads: the monomer chirality acts through the dihedral only.
+
+Not tested: no number in section 4 has been checked against a simulation. Test = the pair free energy of two
+blocks with shifted phi0 (umbrella, or rigid 7-bead fragments as a first estimate).
+
 ## 5. Not covered
 
 Monomers that are themselves chiral-shaped objects (not spheres): every bead-bead contact becomes chiral,
