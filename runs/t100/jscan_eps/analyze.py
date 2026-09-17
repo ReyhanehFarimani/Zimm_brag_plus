@@ -20,7 +20,7 @@ OBS = ["helicity", "absm", "m2", "E_nb", "contact", "Rg2", "E_state"]
 runs = {}
 for log in sorted(glob.glob("logs/J*_es*_s*.log")):
     if "summary" not in open(log).read(): continue
-    J, es, s = map(int, re.search(r"J(\d+)_es(\d+)_s(\d+)", log).groups())
+    g_ = re.search(r"J([\d.]+)_es(\d+)_s(\d+)", log).groups(); J, es, s = float(g_[0]), int(g_[1]), int(g_[2])
     o = read_obs("out/" + os.path.basename(log)[:-4] + "_obs.dat")
     m = (o["n_R"] - o["n_L"]) / N
     o.update(absm=np.abs(m), m2=m * m, contact=(o["E_nb"] != 0).astype(float))
@@ -39,7 +39,7 @@ for k in OBS:
     print(f"\n== {k}:  value +- err   [z vs eps_s = 0 of the same J]")
     print("   J  " + "".join(f"{'eps_s=' + str(e):>26s}" for e in ESs))
     for J in Js:
-        row = f"  {J:2d}  "
+        row = f"  {J:3g} "
         for es in ESs:
             if (J, es) not in cell: row += f"{'--':>26s}"; continue
             v, e, _ = cell[(J, es)][k]; txt = f"{v:.4g} +- {e:.2g}"

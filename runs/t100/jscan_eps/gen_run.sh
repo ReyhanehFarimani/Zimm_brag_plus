@@ -19,7 +19,7 @@
 #   NPROC to add workers to a live batch.  After a kill, remove logs/*.lock of unfinished runs to resume.
 cd "$(dirname "$0")"
 BIN=${BIN:-../../../zimm}
-JS=${JS:-"1 2 3 4 5 6"}
+JS=${JS:-"1 2 3 4 4.5 5 5.5 6"}     # 4.5, 5.5 added 2026-09-17 around the handedness crossover (exact J* = 4.19 at N = 200)
 ESS=${ESS:-"0 1 3 4 7 8"}
 SEEDS=${SEEDS:-"1 2 3"}
 NEQ=${NEQ:-100000}
@@ -35,7 +35,7 @@ sed -e "s/^J0 .*/J0          = $J/" \
     -e "s/^n_equil.*/n_equil     = $NEQ/" \
     -e "s/^n_sweeps.*/n_sweeps    = $NSW/" \
     -e 's/^dump_every.*/dump_every  = 50000/' \
-    -e "s/^seed .*/seed        = $((700000 + 10000*J + 100*ES + s))/" \
+    -e "s/^seed .*/seed        = $((700000 + 10000*${J/./} + 100*ES + s))/" \
     -e "s#^out_prefix .*#out_prefix  = out/$b#" ../sample_data.dat > inputs/$b.dat
 cat >> inputs/$b.dat <<EOT
 E_helix = 0
@@ -54,7 +54,7 @@ b=J${J}_nonb_s${s}
 sed -e "s/^J0 .*/J0          = $J/" -e "s/^J1 .*/J1          = 0/" -e "s/^J2 .*/J2          = $J/" \
     -e 's/^nb_type.*/nb_type = none/' -e 's/^nb_hh.*/nb_hh = same/' \
     -e "s/^n_equil.*/n_equil     = $NEQ/" -e "s/^n_sweeps.*/n_sweeps    = $NSW/" -e 's/^dump_every.*/dump_every  = 0/' \
-    -e "s/^seed .*/seed        = $((790000 + 100*J + s))/" \
+    -e "s/^seed .*/seed        = $((790000 + 100*${J/./} + s))/" \
     -e "s#^out_prefix .*#out_prefix  = out/$b#" ../sample_data.dat > inputs/$b.dat
 printf "E_helix = 0\nn_flip = 4\n" >> inputs/$b.dat
 done; done; fi

@@ -13,6 +13,8 @@
 #   J in {1..6}: E_CC = 0, E_CH = 0 (J1 = 0), E_HH = -J (J0 = J), E_RL = +J (J2 = J), E_helix = 0;  3 seeds  (288 runs)
 # Bonds, bends, coil core: ../sample_data.dat, GENERATED from the measured t45 fits by ../make_sample_data.py.
 # UNITS: all lengths in a, so hf_len = 1 (NOT the 1.2311 of the t100 scans -- see the note in make_sample_data.py).
+# Extra couplings (2026-09-17, to resolve the handedness crossover, exact J* = 4.68 at N = 200):
+#   JS="4.5 5.5" SEED_BASE=4600000 ./gen_run.sh      (own seed block; J may be non-integer)
 # Dispatch: replica-first, the largest eps_s first, high J first within that.  Lock-based workers: start the script
 # again with another NPROC to add workers to a live batch.
 cd "$(dirname "$0")"
@@ -35,7 +37,7 @@ sed -e "s/^J0 .*/J0          = $J/" \
     -e "s/^n_equil.*/n_equil     = $NEQ/" \
     -e "s/^n_sweeps.*/n_sweeps    = $NSW/" \
     -e 's/^dump_every.*/dump_every  = 50000/' \
-    -e "s/^seed .*/seed        = $((4500000 + n))/" \
+    -e "s/^seed .*/seed        = $((${SEED_BASE:-4500000} + n))/" \
     -e "s#^out_prefix .*#out_prefix  = out/$b#" ../sample_data.dat > inputs/$b.dat
 cat >> inputs/$b.dat <<EOT
 E_helix = 0

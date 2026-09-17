@@ -12,6 +12,7 @@
 #   J in {1..6} (E_CH = 0, E_HH = -J, E_RL = +J, E_helix = 0),  3 seeds                        (180 runs)
 #   eps_s = 0 is independent of the width: use the jscan_eps runs.
 # Bonds/bends verbatim from ../sample_data.dat (theta0 carries "deg").  Needs the binary with hf_sig_c.
+# Extra couplings (2026-09-17): JS="4.5 5.5" SEED_BASE=1000000 ./gen_run.sh   (own seed block; J may be non-integer)
 # Dispatch: replica-first, the largest eps_s first (largest possible effect), high J first within that.
 cd "$(dirname "$0")"
 BIN=${BIN:-../../../zimm}
@@ -34,7 +35,7 @@ sed -e "s/^J0 .*/J0          = $J/" \
     -e "s/^n_equil.*/n_equil     = $NEQ/" \
     -e "s/^n_sweeps.*/n_sweeps    = $NSW/" \
     -e 's/^dump_every.*/dump_every  = 50000/' \
-    -e "s/^seed .*/seed        = $((900000 + n))/" \
+    -e "s/^seed .*/seed        = $((${SEED_BASE:-900000} + n))/" \
     -e "s#^out_prefix .*#out_prefix  = out/$b#" ../sample_data.dat > inputs/$b.dat
 cat >> inputs/$b.dat <<EOT
 E_helix = 0

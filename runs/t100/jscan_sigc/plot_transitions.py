@@ -35,14 +35,14 @@ def load(folder, pattern, rx, fixed_sc=None):
     for log in sorted(glob.glob(os.path.join(folder, "logs", pattern))):
         if "summary" not in open(log).read(): continue
         g = re.search(rx, os.path.basename(log)).groups()
-        key = (int(g[0]), "ctrl", None) if fixed_sc == "ctrl" else (int(g[0]), float(g[1]), float(g[2]) if fixed_sc is None else fixed_sc)
+        key = (float(g[0]), "ctrl", None) if fixed_sc == "ctrl" else (float(g[0]), float(g[1]), float(g[2]) if fixed_sc is None else fixed_sc)
         o = read_obs(os.path.join(folder, "out", os.path.basename(log)[:-4] + "_obs.dat")); m = (o["n_R"] - o["n_L"]) / N0
         out.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)),
                                             chi_th=N0 * o["helicity"].var(), U4=1 - (m**4).mean() / (3 * (m**2).mean()**2)))
     return out
-runs = load("../jscan_eps", "J*_es*_s*.log", r"J(\d+)_es(\d+)_s(\d+)", fixed_sc=0.70)
-runs.update(load("../jscan_eps", "J*_nonb_s*.log", r"J(\d+)_nonb", fixed_sc="ctrl"))
-new = load(".", "J*_es*_sc*_s*.log", r"J(\d+)_es([\d.]+)_sc([\d.]+)_s(\d+)"); runs.update(new)
+runs = load("../jscan_eps", "J*_es*_s*.log", r"J([\d.]+)_es(\d+)_s(\d+)", fixed_sc=0.70)
+runs.update(load("../jscan_eps", "J*_nonb_s*.log", r"J([\d.]+)_nonb", fixed_sc="ctrl"))
+new = load(".", "J*_es*_sc*_s*.log", r"J([\d.]+)_es([\d.]+)_sc([\d.]+)_s(\d+)"); runs.update(new)
 def cell(key3, k):
     rs = runs[key3]; v = np.array([r[k] for r in rs]); sem = v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0.0
     eb = np.sqrt(sum(r["e_" + k]**2 for r in rs)) / len(rs) if "e_" + k in rs[0] else 0.0

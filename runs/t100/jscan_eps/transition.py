@@ -82,7 +82,7 @@ def jack(m, nb=20):
 mc, hist = {}, {}
 for log in sorted(glob.glob("logs/J*_es*_s*.log")):
     if "summary" not in open(log).read(): continue
-    J, es, s = map(int, re.search(r"J(\d+)_es(\d+)_s(\d+)", log).groups())
+    g_ = re.search(r"J([\d.]+)_es(\d+)_s(\d+)", log).groups(); J, es, s = float(g_[0]), int(g_[1]), int(g_[2])
     o = read_obs("out/" + os.path.basename(log)[:-4] + "_obs.dat"); m = (o["n_R"] - o["n_L"]) / N
     mc.setdefault((J, es), []).append(jack(m)); hist.setdefault(J, []).append(m)
 Js = sorted({k[0] for k in mc}); ESs = sorted({k[1] for k in mc}); names = ["<|m|>", "<m^2>", "U4", "chi"]
@@ -92,7 +92,7 @@ allz = {n: [] for n in names}; spread = {n: [] for n in names}
 for q, name in enumerate(names):
     print(f"\n  {name}\n     J      exact " + "".join(f"{'eps_s=' + str(e):>19s}" for e in ESs))
     for J in Js:
-        row = f"  {J:4d} {ex200[J][q]:10.4f} "; vals, errs = [], []
+        row = f"  {J:4g} {ex200[J][q]:10.4f} "; vals, errs = [], []
         for es in ESs:
             if (J, es) not in mc: row += f"{'--':>19s}"; continue
             v = np.array([r[0][q] for r in mc[(J, es)]]); e = np.array([r[1][q] for r in mc[(J, es)]])
@@ -109,6 +109,6 @@ for n in names:
 print("\n  shape of P(m) in the MC (all eps_s pooled): fraction of samples with |m| < 0.1 / 0.1-0.9 / > 0.9")
 for J in Js:
     m = np.abs(np.concatenate(hist[J])); pe = exact_PM(J, N); me = np.abs(np.arange(-N, N + 1) / N)
-    print(f"    J = {J}:  MC {np.mean(m < 0.1):.3f} / {np.mean((m >= 0.1) & (m <= 0.9)):.3f} / {np.mean(m > 0.9):.3f}"
+    print(f"    J = {J:g}:  MC {np.mean(m < 0.1):.3f} / {np.mean((m >= 0.1) & (m <= 0.9)):.3f} / {np.mean(m > 0.9):.3f}"
           f"     exact {pe[me < 0.1].sum():.3f} / {pe[(me >= 0.1) & (me <= 0.9)].sum():.3f} / {pe[me > 0.9].sum():.3f}")
 np.savez("transition_exact.npz", Jg=Jg, NS=np.array(NS), **{f"N{N}": ex_tab[N] for N in NS})

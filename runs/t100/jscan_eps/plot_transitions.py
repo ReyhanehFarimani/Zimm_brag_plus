@@ -37,7 +37,9 @@ def hel_inf(J): set_J(J); return ex.hel_inf(0.0)
 # validated ramps (dataviz validate_palette.js --ordinal): one hue each, light -> dark
 NS = (100, 200, 400, 800, 1600);  CN = dict(zip(NS, ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#0d366b"]))          # N
 CE = dict(zip([0, 1, 3, 4, 7, 8], ["#ef9c77", "#e9713f", "#d1501c", "#a53c13", "#752a0c", "#471806"]))                 # eps_s
-CJ = dict(zip([1, 2, 3, 4, 5, 6], ["#52c79e", "#22b07f", "#149166", "#0e7150", "#09523a", "#043325"]))                 # J
+from matplotlib.colors import LinearSegmentedColormap
+_CJ = LinearSegmentedColormap.from_list("J", ["#52c79e", "#22b07f", "#149166", "#0e7150", "#09523a", "#043325"])   # validated ramp, J = 1 .. 6
+def cj(J): return _CJ((float(J) - 1.0) / 5.0)                      # J may be non-integer (4.5, 5.5)
 CP = {3: "#eb6834", 4: "#1baf7a", 5: "#4a3aa7"}                                                                       # P(m)
 INK, MUTED, C1, C2, SURF = "#0b0b0b", "#898781", "#2a78d6", "#eb6834", "#ffffff"
 
@@ -70,8 +72,8 @@ CTRL = "nonb"                                  # key of the control: same chain 
 runs = {}
 for log in sorted(glob.glob("logs/J*_es*_s*.log")) + sorted(glob.glob("logs/J*_nonb_s*.log")):
     if "summary" not in open(log).read(): continue
-    mt = re.search(r"J(\d+)_es(\d+)_s(\d+)", log)
-    J, es = (int(mt.group(1)), int(mt.group(2))) if mt else (int(re.search(r"J(\d+)_nonb", log).group(1)), CTRL)
+    mt = re.search(r"J([\d.]+)_es(\d+)_s(\d+)", log)
+    J, es = (float(mt.group(1)), int(mt.group(2))) if mt else (float(re.search(r"J([\d.]+)_nonb", log).group(1)), CTRL)
     o = read_obs("out/" + os.path.basename(log)[:-4] + "_obs.dat"); m = (o["n_R"] - o["n_L"]) / N0
     runs.setdefault((J, es), []).append(dict(m=m, th=o["helicity"].mean(), am=np.abs(m).mean(), rg2=o["Rg2"].mean(),
         e_th=blk(o["helicity"]), e_am=blk(np.abs(m)), e_rg2=blk(o["Rg2"]), chi_th=N0 * o["helicity"].var(),
@@ -148,7 +150,7 @@ for x, key, yl, t in ((j, "th", r"$\Delta\theta/\theta$  [%]", r"(j) helicity vs
         if not pts: continue
         X, V, Er = map(np.array, zip(*pts)); rel, rerr = 100 * (V - v0) / v0, 100 * np.hypot(Er, e0) / v0
         REL[(key, J)] = (np.array([es for es in ESs if es != 0 and (J, es) in runs]), rel, rerr)
-        x.errorbar(X, rel, yerr=rerr, fmt="o-", ms=4.5, lw=1.2, color=CJ[J], mfc=CJ[J], mec=SURF, mew=0.5, elinewidth=0.9, label=f"J = {J}")
+        x.errorbar(X, rel, yerr=rerr, fmt="o-", ms=4.5, lw=1.2, color=cj(J), mfc=cj(J), mec=SURF, mew=0.5, elinewidth=0.9, label=f"J = {J:g}")
     x.axhline(0, color=MUTED, lw=0.8); x.set_xlim(0, max(ESs) + 1); x.set_xlabel(r"chiral amplitude $\epsilon_s$"); x.set_ylabel(yl + r"   relative to $\epsilon_s = 0$"); tag(x, t)
     yl_ = 1.45 * max(abs(np.array(x.get_ylim()))); x.set_ylim(-yl_, yl_)      # headroom for the tag and the legend
 j.legend(loc="lower left", ncol=3, columnspacing=1.0, handlelength=1.5)
@@ -164,7 +166,7 @@ for key, name in (("th", "helicity"), ("am", "<|m|>")):
     print(f"   {name}")
     zc, zf = [], []
     for J in Js:
-        i = int(round((J - Jg[0]) / 0.125)); exv = E[N0][key][i]; row = f"     J = {J}   {exv:8.4f}  |"
+        i = int(round((J - Jg[0]) / 0.125)); exv = E[N0][key][i]; row = f"     J = {J:<3g} {exv:8.4f}  |"
         for kk, zz in ((CTRL, zc), (0, zf)):
             if (J, kk) in runs: v, er = cell(J, kk, key); zz.append((v - exv) / er); row += f"   {v:8.4f} +- {er:6.4f}  [{zz[-1]:+6.1f}]  ({100 * (v - exv) / exv:+5.2f} %)  |"
             else: row += f"{'--':>46s}  |"
@@ -178,6 +180,6 @@ for key, name in (("th", "helicity"), ("am", "<|m|>"), ("rg2", "<Rg2>")):
         if (key, J) not in REL: continue
         es_, rel, rerr = REL[(key, J)]; dd = dict(zip(es_, zip(rel, rerr)))
         for es in dd: comb[es].append(dd[es][0] / dd[es][1])
-        print(f"  {J:4d}  " + "".join(f"{dd[es][0]:+9.3f} +- {dd[es][1]:5.3f}" if es in dd else f"{'--':>18s}" for es in ESs if es != 0))
+        print(f"  {J:4g}  " + "".join(f"{dd[es][0]:+9.3f} +- {dd[es][1]:5.3f}" if es in dd else f"{'--':>18s}" for es in ESs if es != 0))
     print("   all J combined, sum(z)/sqrt(n)  (|.| > 3 = a significant common shift):  "
           + "   ".join(f"eps_s={es}: {np.sum(z) / np.sqrt(len(z)):+.2f}" for es, z in comb.items() if z))

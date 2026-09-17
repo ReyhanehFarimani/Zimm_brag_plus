@@ -19,7 +19,9 @@ N0 = 200; NS = (100, 200, 400, 800, 1600); Jg = np.arange(0.5, 10.001, 0.125)
 LIMIT = {0.51: 3.1, 0.62: 4.5, 0.87: 6.6}                         # first attraction (clamped potential, theta0 = 45)
 CN = dict(zip(NS, ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#0d366b"]))                   # validated ordinal ramps
 RAMP_E = ["#ef9c77", "#e9713f", "#d1501c", "#a53c13", "#752a0c", "#471806"]
-CJ = dict(zip([1, 2, 3, 4, 5, 6], ["#52c79e", "#22b07f", "#149166", "#0e7150", "#09523a", "#043325"]))
+from matplotlib.colors import LinearSegmentedColormap
+_CJ = LinearSegmentedColormap.from_list("J", ["#52c79e", "#22b07f", "#149166", "#0e7150", "#09523a", "#043325"])   # validated ramp, J = 1 .. 6
+def cj(J): return _CJ((float(J) - 1.0) / 5.0)                      # J may be non-integer (4.5, 5.5)
 INK, MUTED, SURF = "#0b0b0b", "#898781", "#ffffff"
 
 # ---------------------------------------------------------------- exact 1D reference for the t45 parameters
@@ -59,8 +61,8 @@ def blk(x, nb=20): b = x[: len(x) // nb * nb].reshape(nb, -1).mean(1); return b.
 runs = {}
 for log in sorted(glob.glob("logs/J*.log")):
     if "summary" not in open(log).read(): continue
-    b = os.path.basename(log); g = re.search(r"J(\d+)_es([\d.]+)_sc([\d.]+)_s(\d+)", b)
-    key = (int(g.group(1)), float(g.group(2)), float(g.group(3))) if g else (int(re.search(r"J(\d+)_nonb", b).group(1)), "ctrl", None)
+    b = os.path.basename(log); g = re.search(r"J([\d.]+)_es([\d.]+)_sc([\d.]+)_s(\d+)", b)
+    key = (float(g.group(1)), float(g.group(2)), float(g.group(3))) if g else (float(re.search(r"J([\d.]+)_nonb", b).group(1)), "ctrl", None)
     if g and key[1] == 0.0: key = (key[0], 0.0, None)                                # eps_s = 0: no range
     o = read_obs("out/" + b[:-4] + "_obs.dat"); m = (o["n_R"] - o["n_L"]) / N0
     runs.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), rg2=o["Rg2"].mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)),
@@ -110,7 +112,7 @@ for r, (k, yl, name) in enumerate(KEYS):
             if not ess: continue
             V, Er, Ns = map(np.array, zip(*[cell((J, e, sc), k) for e in ess])); rel, rerr = 100 * (V - v0) / v0, 100 * np.hypot(Er, e0) / v0
             REL[(k, sc, J)] = (np.array(ess), rel, rerr, Ns); ymax = max(ymax, np.abs(rel).max() + rerr.max())
-            x.errorbar(np.array(ess) + (n - 2.5) * 0.04, rel, yerr=rerr, fmt="o-", ms=4.5, lw=1.2, color=CJ[J], mfc=CJ[J], mec=SURF, mew=0.5, elinewidth=0.9, label=f"J = {J}")
+            x.errorbar(np.array(ess) + (n - (len(Js) - 1) / 2) * 0.03, rel, yerr=rerr, fmt="o-", ms=4.5, lw=1.2, color=cj(J), mfc=cj(J), mec=SURF, mew=0.5, elinewidth=0.9, label=f"J = {J:g}")
         x.axhline(0, color=MUTED, lw=0.8); x.axvline(LIMIT.get(sc, np.nan), color=MUTED, lw=0.8, ls=":"); x.axvline(1.0, color=MUTED, lw=0.8, ls="--")
         x.set_xlim(0, 8.5); x.set_xlabel(r"chiral amplitude $\epsilon_s$"); x.set_ylabel(yl + r"   relative to $\epsilon_s = 0$" if c == 0 else "")
         x.text(0.04, 0.95, rf"({'abcdefghi'[3 * r + c]}) {name.split(' ')[0]},  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top", fontsize=9, color=INK)
@@ -130,10 +132,10 @@ for k, _, name in KEYS:
         for J in Js:
             if (k, sc, J) not in REL: continue
             ess, rel, rerr, Ns = REL[(k, sc, J)]; zs += list(rel / rerr)
-            print(f"  sigma_c {sc:.2f}  J = {J}: " + "   ".join(f"eps {e:g}: {a:+6.3f}+-{b:5.3f} [{a / b:+4.1f}] n={n_}" for e, a, b, n_ in zip(ess, rel, rerr, Ns)))
+            print(f"  sigma_c {sc:.2f}  J = {J:g}: " + "   ".join(f"eps {e:g}: {a:+6.3f}+-{b:5.3f} [{a / b:+4.1f}] n={n_}" for e, a, b, n_ in zip(ess, rel, rerr, Ns)))
         if zs: zs = np.array(zs); print(f"  sigma_c {sc:.2f}  -> RMS z = {np.sqrt((zs**2).mean()):.2f} (1 = noise), mean z = {zs.mean():+.2f}, largest |z| = {np.abs(zs).max():.1f}, cells = {len(zs)}")
 print("\n== MC vs exact 1D (N = 200) at eps_s = 0:  J | theta MC / exact | <|m|> MC / exact | <E_nb> [kT]")
 for J in Js:
     if (J, 0.0, None) not in runs: continue
     i = int(round((J - Jg[0]) / 0.125)); t, a = cell((J, 0.0, None), "th"), cell((J, 0.0, None), "am")
-    print(f"   J = {J}:  {t[0]:.4f}+-{t[1]:.4f} / {E[N0]['th'][i]:.4f}    {a[0]:.4f}+-{a[1]:.4f} / {E[N0]['am'][i]:.4f}    {cell((J, 0.0, None), 'enb')[0]:.3f}")
+    print(f"   J = {J:g}:  {t[0]:.4f}+-{t[1]:.4f} / {E[N0]['th'][i]:.4f}    {a[0]:.4f}+-{a[1]:.4f} / {E[N0]['am'][i]:.4f}    {cell((J, 0.0, None), 'enb')[0]:.3f}")
