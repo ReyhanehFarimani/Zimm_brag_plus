@@ -23,6 +23,12 @@ from matplotlib.colors import LinearSegmentedColormap
 _CJ = LinearSegmentedColormap.from_list("J", ["#52c79e", "#22b07f", "#149166", "#0e7150", "#09523a", "#043325"])   # validated ramp, J = 1 .. 6
 def cj(J): return _CJ((float(J) - 1.0) / 5.0)                      # J may be non-integer (4.5, 5.5)
 INK, MUTED, SURF = "#0b0b0b", "#898781", "#ffffff"
+RAMP_A = ["#9d92e6", "#6e5ed0", "#3f3196"]                        # validated violet ramp: same-handed ATTRACTION (eps_s above the limit)
+def eps_colours(ess, sc):
+    rep_ = [e for e in ess if e <= LIMIT.get(sc, 1e9)]; att = [e for e in ess if e > LIMIT.get(sc, 1e9)]
+    col = {e: RAMP_E[min(int(round(i * 5 / max(len(rep_) - 1, 1))), 5)] for i, e in enumerate(rep_)}
+    col.update({e: RAMP_A[min(i, 2)] for i, e in enumerate(att)}); return col
+def eps_label(e, sc): return rf"$\epsilon_s$ = {e:g}" + (" (attr.)" if e > LIMIT.get(sc, 1e9) else "")
 
 # ---------------------------------------------------------------- exact 1D reference for the t45 parameters
 sys.argv = ["x", "../sample_data.dat"]
@@ -59,12 +65,13 @@ def read_obs(f):
     return {k: rows[:, i] for i, k in enumerate(hdr)}
 def blk(x, nb=20): b = x[: len(x) // nb * nb].reshape(nb, -1).mean(1); return b.std(ddof=1) / np.sqrt(nb)
 runs = {}
-for log in sorted(glob.glob("logs/J*.log")):
+ATTR = "../jscan_attr"                          # weak same-handed attraction: eps_s above the first-attraction limit
+for log in sorted(glob.glob("logs/J*.log")) + sorted(glob.glob(ATTR + "/logs/J*.log")):
     if "summary" not in open(log).read(): continue
-    b = os.path.basename(log); g = re.search(r"J([\d.]+)_es([\d.]+)_sc([\d.]+)_s(\d+)", b)
+    b = os.path.basename(log); odir = os.path.join(os.path.dirname(os.path.dirname(log)), "out"); g = re.search(r"J([\d.]+)_es([\d.]+)_sc([\d.]+)_s(\d+)", b)
     key = (float(g.group(1)), float(g.group(2)), float(g.group(3))) if g else (float(re.search(r"J([\d.]+)_nonb", b).group(1)), "ctrl", None)
     if g and key[1] == 0.0: key = (key[0], 0.0, None)                                # eps_s = 0: no range
-    o = read_obs("out/" + b[:-4] + "_obs.dat"); m = (o["n_R"] - o["n_L"]) / N0
+    o = read_obs(os.path.join(odir, b[:-4] + "_obs.dat")); m = (o["n_R"] - o["n_L"]) / N0
     runs.setdefault(key, []).append(dict(th=o["helicity"].mean(), am=np.abs(m).mean(), rg2=o["Rg2"].mean(), e_th=blk(o["helicity"]), e_am=blk(np.abs(m)),
         e_rg2=blk(o["Rg2"]), chi_th=N0 * o["helicity"].var(), U4=1 - (m**4).mean() / (3 * (m**2).mean()**2), enb=o["E_nb"].mean()))
 def cell(key3, k):
@@ -81,7 +88,7 @@ plt.rcParams.update({"font.size": 9, "axes.linewidth": 0.8, "legend.frameon": Fa
 COLS = (("th", r"helicity $\theta$"), ("chi_th", r"$\chi_\theta = N\,\mathrm{var}(\theta)$"), ("am", r"handedness $\langle |m| \rangle$"), ("U4", r"Binder cumulant $U_4$"))
 fig, ax = plt.subplots(len(SCs), 4, figsize=(16.0, 4.1 * len(SCs)), squeeze=False)
 for r, sc in enumerate(SCs):
-    ess = [0.0] + sorted({k[1] for k in runs if k[2] == sc}); col = {e: RAMP_E[min(i, 5)] for i, e in enumerate(ess)}
+    ess = [0.0] + sorted({k[1] for k in runs if k[2] == sc}); col = eps_colours(ess, sc)
     for c, (k, yl) in enumerate(COLS):
         x = ax[r, c]
         for N in NS: x.plot(Jg, E[N][k], color=CN[N], lw=1.8, label=f"exact 1D, N = {N}" if (r == 0 and c == 0) else None)
@@ -91,7 +98,7 @@ for r, sc in enumerate(SCs):
         for n, e in enumerate(ess):
             pts = [(J + (n - (len(ess) - 1) / 2) * 0.09,) + cell(kk(J, e, sc), k)[:2] for J in Js if kk(J, e, sc) in runs]
             if not pts: continue
-            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="o", ms=5, mfc=col[e], mec=SURF, mew=0.6, ecolor=col[e], elinewidth=0.9, zorder=5, label=rf"$\epsilon_s$ = {e:g}" if k == "am" else None)
+            X, V, Er = map(np.array, zip(*pts)); x.errorbar(X, V, yerr=Er, fmt="o", ms=5, mfc=col[e], mec=SURF, mew=0.6, ecolor=col[e], elinewidth=0.9, zorder=5, label=eps_label(e, sc) if k == "am" else None)
         x.set_xlim(0.5, 10); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
         tx, ty, ha = {"th": (0.96, 0.66, "right"), "chi_th": (0.96, 0.94, "right"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.84, "left")}[k]
         x.text(tx, ty, rf"({'abcdefghijkl'[4 * r + c]})  $\theta_0$ = 45,  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top", ha=ha, fontsize=9, color=INK)
@@ -103,14 +110,14 @@ ax[0, 0].legend(loc="lower right"); fig.tight_layout(); fig.savefig("transitions
 COLS5 = COLS + (("rg2", r"chain size $\langle R_g^2 \rangle$ [$a^2$]"),)
 fig, ax = plt.subplots(len(SCs), 5, figsize=(19.5, 4.1 * len(SCs)), squeeze=False)
 for r, sc in enumerate(SCs):
-    ess = [0.0] + sorted({k[1] for k in runs if k[2] == sc}); col = {e: RAMP_E[min(i, 5)] for i, e in enumerate(ess)}
+    ess = [0.0] + sorted({k[1] for k in runs if k[2] == sc}); col = eps_colours(ess, sc)
     for c, (k, yl) in enumerate(COLS5):
         x = ax[r, c]
         for e in ess:
             pts = [(J,) + cell(kk(J, e, sc), k)[:2] for J in Js if kk(J, e, sc) in runs]
             if not pts: continue
             X, V, Er = map(np.array, zip(*pts))
-            x.errorbar(X, V, yerr=Er, fmt="o-", ms=4.5, lw=1.4, color=col[e], mfc=col[e], mec=SURF, mew=0.5, elinewidth=0.9, zorder=3 + ess.index(e), label=rf"$\epsilon_s$ = {e:g}")
+            x.errorbar(X, V, yerr=Er, fmt="o-", ms=4.5, lw=1.4, color=col[e], mfc=col[e], mec=SURF, mew=0.5, elinewidth=0.9, zorder=3 + ess.index(e), label=eps_label(e, sc))
         x.set_xlim(0.5, 6.5); x.set_xlabel(r"coupling $J$ [$k_BT$]"); x.set_ylabel(yl)
         tx, ty, ha = {"th": (0.96, 0.10, "right"), "chi_th": (0.96, 0.94, "right"), "am": (0.04, 0.94, "left"), "U4": (0.04, 0.94, "left"), "rg2": (0.04, 0.94, "left")}[k]
         x.text(tx, ty, rf"({'abcdefghijklmno'[5 * r + c]})  $\theta_0$ = 45,  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top" if ty > 0.5 else "bottom", ha=ha, fontsize=9, color=INK)
@@ -132,7 +139,7 @@ for r, (k, yl, name) in enumerate(KEYS):
             REL[(k, sc, J)] = (np.array(ess), rel, rerr, Ns); ymax = max(ymax, np.abs(rel).max() + rerr.max())
             x.errorbar(np.array(ess) + (n - (len(Js) - 1) / 2) * 0.03, rel, yerr=rerr, fmt="o-", ms=4.5, lw=1.2, color=cj(J), mfc=cj(J), mec=SURF, mew=0.5, elinewidth=0.9, label=f"J = {J:g}")
         x.axhline(0, color=MUTED, lw=0.8); x.axvline(LIMIT.get(sc, np.nan), color=MUTED, lw=0.8, ls=":"); x.axvline(1.0, color=MUTED, lw=0.8, ls="--")
-        x.set_xlim(0, 8.5); x.set_xlabel(r"chiral amplitude $\epsilon_s$"); x.set_ylabel(yl + r"   relative to $\epsilon_s = 0$" if c == 0 else "")
+        x.set_xlim(0, 10.0); x.set_xlabel(r"chiral amplitude $\epsilon_s$"); x.set_ylabel(yl + r"   relative to $\epsilon_s = 0$" if c == 0 else "")
         x.text(0.04, 0.95, rf"({'abcdefghi'[3 * r + c]}) {name.split(' ')[0]},  $\sigma_c$ = {sc:.2f} a", transform=x.transAxes, va="top", fontsize=9, color=INK)
     for c in range(len(SCs)):
         ax[r, c].set_ylim(-1.5 * ymax, 1.5 * ymax)
