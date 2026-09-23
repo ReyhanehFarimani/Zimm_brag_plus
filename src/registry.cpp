@@ -55,9 +55,14 @@ double registry_twist(const Chain& chain, int i) {
 
 double twist_energy(const Chain& chain, int i) {
     const State a = chain.state[i], b = chain.state[i + 1];
-    if (!is_helix(a) || a != b) return 0.0;
+    if (!is_helix(a) || !is_helix(b)) return 0.0;
     const Input& in = chain.input();
     if (!in.twist_on) return 0.0;
+    if (a != b) {                                        // opposite hands: anti-aligned registries
+        if (in.twist_kappa_rl <= 0.0) return 0.0;
+        const double d = wrap_pi(registry_twist(chain, i) - in.twist_alpha0_rl_rad);
+        return 0.5 * in.twist_kappa_rl * d * d;
+    }
     const double d = wrap_pi(registry_twist(chain, i) - spin(a) * in.twist_alpha0_rad);
     return 0.5 * in.twist_kappa * d * d;
 }

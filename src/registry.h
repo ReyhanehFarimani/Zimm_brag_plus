@@ -16,7 +16,9 @@
 //   theta0 = 100: dalpha_0 = -135.3 deg (ideal screw, 7 x turn per bead), sigma = 42.5 deg
 //   theta0 =  45: dalpha_0 =  +25.3 deg,                                   sigma = 22.3 deg
 // kappa_t = kT / sigma^2 reproduces the measured variance; the fitted well positions are -134.6 and
-// +21.3 deg.  Opposite-hand neighbours (R.L) and helix-coil neighbours have no twist term.
+// +21.3 deg.  Opposite-hand neighbours (R.L) carry the same kind of term with dalpha_0 = 180 deg (measured
+// anti-aligned registries: sigma 27.4 deg at theta0 = 45, 96 deg at 100); helix-coil neighbours have none
+// (their registry twist is measured uniform).
 //
 // Registries move with the geometry: a rigid rotation of a segment (pivot, hinge) rotates its
 // registries with it; a residue whose tangent changes has its registry carried by the minimal

@@ -187,7 +187,15 @@ struct Input {
     // the term off (the registries are then coupled by the pair table only).
     double twist_alpha0 = -999.0;
     double twist_kappa  = -1.0;
+    // the same term for OPPOSITE-handed neighbours (R.L), measured 2026-09-23 on the graded runs: the
+    // registries across an R|L junction are anti-aligned, dalpha_0 = 180 deg with sigma = 27.4 deg at
+    // theta0 = 45 (as sharp as R.R) and 96 deg at theta0 = 100; leaving them free (kappa = 0) gives every
+    // R|L junction ~1.7 kT of spurious registry entropy against R.R.  Coil-helix junctions ARE free
+    // (measured uniform, R = 0.06) and carry no term.  Negative = the measured default of hf_theta0.
+    double twist_alpha0_rl = -999.0;
+    double twist_kappa_rl  = -1.0;
     double twist_alpha0_rad = 0.0;     // derived
+    double twist_alpha0_rl_rad = 0.0;  // derived
     bool   twist_on = false;           // derived: nb_hh = db and twist_kappa > 0
     int    debug_registry = 0;         // 1: check the registry invariants every sweep (slow)
 
