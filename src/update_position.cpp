@@ -1,7 +1,10 @@
 #include "update_position.h"
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
 #include "pair_potential.h"
+#include "registry.h"
 
 namespace {
 
@@ -43,13 +46,40 @@ bool try_position_move(Chain& chain, int i, const Input& in, std::mt19937_64& rn
         // the list is rebuilt
         const bool use_list = nl_covers(chain, i, new_p);
         const double e_nb_old = nb_local_energy(chain, i, use_list);
+        // registries (nb_hh = db): the tangents of i-1, i, i+1 change with pos[i]; a run anchored at
+        // one of them has its anchor transported, and every run touched has its downstream registries
+        // rederived by parallel transport -- those residues' pairs enter the energy change too
+        const bool reg = in.nb_hh == "db";
+        const int N = chain.N();
+        const int lo_e = std::max(0, i - 1);
+        int hi_e = std::min(N - 1, i + 1);
+        std::vector<Vec3> m_old;
+        Vec3 u_old[3];
+        if (reg) {
+            for (int k = 0; k < 3; ++k) { const int j = i - 1 + k; if (j >= 0 && j < N) u_old[k] = chain.tangent(j); }
+            for (int k = 0; k < 3; ++k) { const int j = i - 1 + k;
+                if (j >= 0 && j < N && is_helix(chain.state[j])) { int lo, hi; registry_run(chain, j, lo, hi); hi_e = std::max(hi_e, hi); } }
+            m_old.assign(chain.reg.begin() + lo_e, chain.reg.begin() + hi_e + 1);
+        }
+        const double e_nb_old_r = reg ? nb_range_energy(chain, lo_e, hi_e, use_list) : e_nb_old;
         chain.pos[i] = new_p;
-        dE += nb_local_energy(chain, i, use_list) - e_nb_old;
+        if (reg) {
+            for (int k = 0; k < 3; ++k) {
+                const int j = i - 1 + k;
+                if (j < 0 || j >= N || !is_helix(chain.state[j])) continue;
+                int lo, hi; registry_run(chain, j, lo, hi);
+                if (j == lo) chain.reg[j] = registry_transport(chain.reg[j], u_old[k], chain.tangent(j));   // anchor moves with its rod
+                registry_rederive(chain, std::max(j, lo + 1));
+            }
+        }
+        dE += (reg ? nb_range_energy(chain, lo_e, hi_e, use_list) : nb_local_energy(chain, i, use_list)) - e_nb_old_r;
+        g_last_dE = dE;
         if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) {
             if (!use_list) nl_invalidate(chain);
             return true;
         }
         chain.pos[i] = old_p;
+        if (reg) std::copy(m_old.begin(), m_old.end(), chain.reg.begin() + lo_e);
         return false;
     }
 

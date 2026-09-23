@@ -1,8 +1,10 @@
 #include "update_hinge.h"
 
 #include <cmath>
+#include <algorithm>
 #include <map>
 #include "pair_potential.h"
+#include "registry.h"
 
 namespace {
 
@@ -54,8 +56,16 @@ void resample_bond(Chain& chain, int j, double theta, std::mt19937_64& rng) {
         axis = (1.0 / sa) * axis;
     }
     const double ang = std::atan2(sa, ca);
+    const Vec3 u_j_old = chain.tangent(j);
+    const Vec3 m_j_old = chain.reg[j];
     for (int k = j + 1; k < chain.N(); ++k)
         chain.pos[k] = pivot + rotate(chain.pos[k] - pivot, axis, ang);
+    for (int k = j + 1; k < chain.N(); ++k) chain.reg[k] = rotate(chain.reg[k], axis, ang);
+    if (is_helix(chain.state[j])) {
+        int lo, hi; registry_run(chain, j, lo, hi);
+        if (j == lo) chain.reg[j] = registry_transport(m_j_old, u_j_old, chain.tangent(j));
+        registry_rederive(chain, std::max(j, lo + 1));
+    }
 }
 
 } // namespace
@@ -86,7 +96,10 @@ bool try_hinge_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
         if (j >= 1 && j <= N - 2) { has[m] = true; old_par[m] = chain.bend_par(j); }
     }
 
-    chain.state[i] = from_spin(q_new);
+    const State new_s = from_spin(q_new);
+    chain.state[i] = new_s;
+    RegistryUndo undo;                                                      // registries: keep the run rules
+    registry_on_state_change(chain, i, old_s, new_s, rng, undo);
 
     double e_new = site_energy(chain, i);
     if (i > 0)     e_new += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
@@ -101,6 +114,7 @@ bool try_hinge_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
 
     if (log_ratio < 0.0 && unif(rng) >= std::exp(log_ratio)) {
         chain.state[i] = old_s;                                             // rejected
+        registry_undo(chain, undo);
         return false;
     }
     // accepted: redraw every changed hinge from its new distribution (upstream first)

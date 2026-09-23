@@ -2,6 +2,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include "helix_pair_db.hpp"
+
+double g_last_dE = 0.0;
 
 double bond_energy_of(const Chain& chain, int i, double r) {
     const BondParams& p = chain.bond_par(i);
@@ -227,16 +232,63 @@ double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2,
 }
 
 bool nb_anisotropic(const Input& in) {
-    return in.nb_type[0] != 'n' && (in.nb_hh == "gb" || in.nb_hh == "fit");
+    return in.nb_type[0] != 'n' && (in.nb_hh == "gb" || in.nb_hh == "fit" || in.nb_hh == "db");
 }
 
 // true if the pair energy depends on the helix handedness (R vs L)
-bool nb_chiral(const Input& in) { return in.nb_type[0] != 'n' && in.nb_hh == "fit"; }
+bool nb_chiral(const Input& in) {
+    return in.nb_type[0] != 'n' && (in.nb_hh == "fit" || in.nb_hh == "db");
+}
+
+// ---- tabulated potential (nb_hh = db) ----
+namespace {
+const HelixPairDB& the_db(const Input& in) {
+    static HelixPairDB db;
+    static bool loaded = false;
+    if (!loaded) {
+        db.load(in.db_file);
+        if (db.theta_index(in.hf_theta0) < 0) {
+            std::fprintf(stderr, "db_file %s has no theta0 = %d entry\n", in.db_file.c_str(), in.hf_theta0);
+            std::exit(EXIT_FAILURE);
+        }
+        std::printf("# db loaded: %s (%zu entries, level:%s)\n", in.db_file.c_str(), db.u.size(), db.level.c_str());
+        loaded = true;
+    }
+    return db;
+}
+}
+
+double db_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rvec,
+                 int hand1, int hand2, const Vec3& m1, const Vec3& m2) {
+    const HelixPairDB& db = the_db(in);
+    const double rn = norm(rvec);
+    const double r = rn / in.hf_len;                     // -> table units [a]
+    if (r <= 0.0) return db.ucap;
+    if (r > db.r_max()) return 0.0;
+    const Vec3 rh = (1.0 / rn) * rvec;
+    const double e1 = std::max(-1.0, std::min(1.0, dot(rh, u1)));
+    const double e2 = std::max(-1.0, std::min(1.0, dot(rh, u2)));
+    const double deg = 180.0 / M_PI;
+    const double bA = std::acos(e1) * deg;               // r.u1 =  cos betaA
+    const double bB = std::acos(-e2) * deg;              // r.u2 = -cos betaB
+    const double P = dot(cross(u1, u2), rh);
+    const double psi = std::atan2(P, dot(u1, u2) - e1 * e2) * deg;   // (u1 x u2).r = sin bA sin bB sin psi
+    // alpha_A: azimuth of m1 about u1, right-handed, from the direction to the partner (r_hat perp u1)
+    Vec3 fA = rh - e1 * u1;  double nA = norm(fA);
+    Vec3 fB = (-1.0) * rh + e2 * u2; double nB = norm(fB);   // direction to A perp u2: -rh - (-rh.u2) u2
+    double aA = 0.0, aB = 0.0;                           // end-on: alpha is a gauge, take 0
+    if (nA > 1e-9) { fA = (1.0 / nA) * fA; aA = std::atan2(dot(cross(fA, m1), u1), dot(fA, m1)) * deg; }
+    if (nB > 1e-9) { fB = (1.0 / nB) * fB; aB = std::atan2(dot(cross(fB, m2), u2), dot(fB, m2)) * deg; }
+    const int type = (hand1 > 0) ? (hand2 > 0 ? HelixPairDB::RR : HelixPairDB::RL)
+                                 : (hand2 > 0 ? HelixPairDB::LR : HelixPairDB::LL);
+    return db.U(db.theta_index(in.hf_theta0), type, r, bA, bB, psi, aA, aB);
+}
 
 // helix-helix: Gay-Berne rods (nb_hh = gb) or the measured potential
 // (nb_hh = fit); coil-coil and helix-coil: the isotropic core
 double nb_pair_energy(const Chain& chain, int a, int b) {
     const Input& in = chain.input();
+    if (a > b) std::swap(a, b);                  // canonical order: the pair energy must not depend on it
     const Vec3 rvec = chain.pos[b] - chain.pos[a];
     const double r2 = norm2(rvec);
     if (r2 >= chain.nl.rc_max2) return 0.0;      // beyond every cutoff: skip the tangents
@@ -246,14 +298,38 @@ double nb_pair_energy(const Chain& chain, int a, int b) {
         if (in.nb_hh == "fit")
             return helixfit_energy(in, chain.tangent(a), chain.tangent(b), rvec,
                                    spin(chain.state[a]), spin(chain.state[b]));
+        if (in.nb_hh == "db")
+            return db_energy(in, chain.tangent(a), chain.tangent(b), rvec,
+                             spin(chain.state[a]), spin(chain.state[b]), chain.reg[a], chain.reg[b]);
     }
     return nb_iso_energy(in, r2);
+}
+
+double nb_range_energy(const Chain& chain, int lo, int hi, bool use_list) {
+    const int N = chain.N();
+    const bool list = use_list && nl_ready(chain);
+    double e = 0.0;
+    for (int k = lo; k <= hi; ++k) {
+        if (list) {
+            for (int j : chain.nl.nbrs[k]) {
+                if (j >= lo && j <= hi) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
+                e += nb_pair_energy(chain, k, j);
+            }
+            continue;
+        }
+        for (int j = 0; j < N; ++j) {
+            if (j >= lo && j <= hi) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
+            if (j < k - 1 || j > k + 1) e += nb_pair_energy(chain, k, j);
+        }
+    }
+    return e;
 }
 
 double nb_cutoff_max(const Input& in) {
     double rc = in.nb_rcut;
     if (in.nb_hh == "gb")  rc = std::max(rc, in.rod_L + 0.13 * 2.0 * in.rod_r);
     if (in.nb_hh == "fit") rc = std::max(rc, HF_RCUT * in.hf_len);
+    if (in.nb_hh == "db")  rc = std::max(rc, the_db(in).r_max() * in.hf_len);
     return rc * (1.0 + 1e-9);                    // each potential still applies its own exact cutoff
 }
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include "pair_potential.h"
+#include "registry.h"
 
 bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng) {
     const State s = chain.state[i];
@@ -17,6 +18,12 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
         if (a > 0 && is_helix(chain.state[a - 1])) return false;
         if (b < N - 1 && is_helix(chain.state[b + 1])) return false;
     }                                                             // else (a) single site: a = b = i
+    // registries (nb_hh = db): a single-site flip inside a run splits it (the right part draws a
+    // fresh twist), so the affected range extends to the end of the run; a whole-run flip keeps
+    // its registry (it never merges: rejected above)
+    const bool reg = in.nb_hh == "db";
+    const State t = (s == State::R) ? State::L : State::R;
+    const int hi_reg = (reg && a == b) ? registry_change_hi(chain, i, s, t) : b;
 
     // energies that can change: the edge bonds (a-1, a) and (b, b+1) and the bends at a-1, a, b, b+1;
     // with a handedness-dependent non-bonded potential (nb_hh = fit) also every non-bonded pair
@@ -33,6 +40,7 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
             e += bend_energy(chain, j);
         }
         if (nb_chiral(in)) {
+            if (reg) { e += nb_range_energy(chain, a, hi_reg); return e; }
             const bool list = nl_ready(chain);                     // the geometry does not change in this move
             for (int k = a; k <= b; ++k) {
                 if (list) {
@@ -51,12 +59,15 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
         return e;
     };
     const double e_old = local();
-    const State t = (s == State::R) ? State::L : State::R;
     for (int k = a; k <= b; ++k) chain.state[k] = t;
+    RegistryUndo undo;
+    if (reg && a == b) registry_on_state_change(chain, i, s, t, rng, undo);
     const double dE = local() - e_old;
 
     std::uniform_real_distribution<double> unif(0.0, 1.0);
+    g_last_dE = dE;
     if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
     for (int k = a; k <= b; ++k) chain.state[k] = s;              // rejected: restore
+    if (reg && a == b) registry_undo(chain, undo);
     return false;
 }

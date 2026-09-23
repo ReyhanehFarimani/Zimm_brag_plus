@@ -94,6 +94,10 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "hf_clamp")   return parse(val, in.hf_clamp);
     if (key == "hf_sig_c")   return parse(val, in.hf_sig_c);
     if (key == "hf_eps_rl")  return parse(val, in.hf_eps_rl);
+    if (key == "db_file")    { in.db_file = val; return true; }
+    if (key == "n_twist")    return parse(val, in.n_twist);
+    if (key == "twist_step") return parse(val, in.twist_step);
+    if (key == "debug_registry") return parse(val, in.debug_registry);
     if (key == "nl_skin")    return parse(val, in.nl_skin);
     if (key == "rod_L")     return parse(val, in.rod_L);
     if (key == "rod_r")      return parse(val, in.rod_r);
@@ -163,10 +167,16 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.nb_type != "none" && in.nb_type != "gauss" && in.nb_type != "wca") {
         std::fprintf(stderr, "input: nb_type must be none, gauss or wca\n"); ok = false;
     }
-    if (in.nb_hh != "same" && in.nb_hh != "gb" && in.nb_hh != "fit") {
-        std::fprintf(stderr, "input: nb_hh must be same, gb or fit\n"); ok = false;
+    if (in.nb_hh != "same" && in.nb_hh != "gb" && in.nb_hh != "fit" && in.nb_hh != "db") {
+        std::fprintf(stderr, "input: nb_hh must be same, gb, fit or db\n"); ok = false;
     }
-    if ((in.nb_hh == "gb" || in.nb_hh == "fit") && in.nb_type == "none") {
+    if (in.nb_hh == "db" && in.db_file.empty()) {
+        std::fprintf(stderr, "input: nb_hh = db needs db_file\n"); ok = false;
+    }
+    if (in.nb_hh == "db" && in.n_twist <= 0) {
+        std::fprintf(stderr, "input: nb_hh = db needs n_twist > 0 (the registries must be sampled)\n"); ok = false;
+    }
+    if ((in.nb_hh == "gb" || in.nb_hh == "fit" || in.nb_hh == "db") && in.nb_type == "none") {
         std::fprintf(stderr, "input: nb_hh = %s needs nb_type = gauss or wca for the coil pairs\n", in.nb_hh.c_str()); ok = false;
     }
     if (in.nb_hh == "fit" && in.hf_theta0 != 100 && in.hf_theta0 != 45) {
@@ -226,6 +236,9 @@ void print_input(const Input& in) {
     std::printf("# n_hinge     = %d\n",   in.n_hinge);
     std::printf("# n_pivot     = %d  (max_rot = %g)\n", in.n_pivot, in.max_rot);
     std::printf("# n_flip      = %d\n", in.n_flip);
+    if (in.nb_hh == "db")
+        std::printf("# db_file     = %s  (theta0 %d, hf_len %g); n_twist = %d, twist_step = %g deg\n",
+                    in.db_file.c_str(), in.hf_theta0, in.hf_len, in.n_twist, in.twist_step);
     std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);

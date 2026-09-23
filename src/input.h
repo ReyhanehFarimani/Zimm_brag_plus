@@ -171,6 +171,15 @@ struct Input {
     //               hf_eps_s then acts on same-handed pairs only: e.g. hf_eps_s = 12.2, hf_eps_rl = 1 gives a
     //               same-handed well of -3 kT while R.L pairs keep the measured, purely repulsive potential.
     double hf_eps_rl = -1.0;
+    // nb_hh = db: tabulated helix-helix potential (prelim/cg/helix_pair_db_full.py, HELIX_PAIR_DB v2)
+    // read from db_file, nearest-node lookup in (r, betaA, betaB, psi, alphaA, alphaB); the registries
+    // alpha come from the per-residue registry directions (registry.h) and the twist move
+    // (n_twist attempts per sweep, step +- twist_step degrees).  hf_theta0 / hf_len select the
+    // table's theta0 entry and the length unit as for nb_hh = fit.
+    std::string db_file  = "";
+    int    n_twist    = 0;
+    double twist_step = 30.0;          // degrees
+    int    debug_registry = 0;         // 1: check the registry invariants every sweep (slow)
 
     // Verlet neighbour list for the non-bonded energy. nl_skin = total skin width (code units):
     //   < 0 = automatic (4 sqrt(3) max_disp: a single displacement never exceeds half of it), 0 = off

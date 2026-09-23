@@ -5,6 +5,10 @@
 #include "update_hinge.h"
 #include "update_pivot.h"
 #include "update_flipdomain.h"
+#include "update_twist.h"
+#include "registry.h"
+#include <cstdio>
+#include <cstdlib>
 
 MC::MC(const Input& in, Chain& chain)
     : in_(in), chain_(chain), rng_(in.seed) {}
@@ -30,6 +34,14 @@ void MC::sweep() {
         ++try_flip_;
         if (try_domain_flip(chain_, pick(rng_), in_, rng_)) ++acc_flip_;
     }
+    for (int k = 0; k < in_.n_twist; ++k) {
+        ++try_twist_;
+        if (try_twist_move(chain_, pick(rng_), in_, rng_)) ++acc_twist_;
+    }
+    if (in_.debug_registry) {
+        const int bad = registry_check(chain_);
+        if (bad) { std::fprintf(stderr, "registry invariant violated (%d)\n", bad); std::exit(EXIT_FAILURE); }
+    }
     if (N > 2) {
         std::uniform_int_distribution<int> pick_inner(1, N - 2);
         for (int k = 0; k < in_.n_pivot; ++k) {
@@ -45,4 +57,5 @@ void MC::reset_acceptance() {
     try_hinge_ = acc_hinge_ = 0;
     try_pivot_ = acc_pivot_ = 0;
     try_flip_  = acc_flip_  = 0;
+    try_twist_ = acc_twist_ = 0;
 }

@@ -38,8 +38,15 @@ double gb_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rv
 // angular maps, handedness-resolved; hand1/hand2 = spin (+1 R, -1 L) of the two residues
 double helixfit_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rvec,
                        int hand1, int hand2);
+// tabulated helix-helix potential (nb_hh = db): nearest node of the six-argument table in
+// (r, betaA, betaB, psi, alphaA, alphaB); m1, m2 = the registry directions of the two residues
+double db_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rvec,
+                 int hand1, int hand2, const Vec3& m1, const Vec3& m2);
 // full pair energy of beads a and b of the chain (states, positions and, for helix-helix, tangents)
 double nb_pair_energy(const Chain& chain, int a, int b);
+// energy of every pair (k, j) with k in [lo, hi], |k-j| > 1; pairs inside the range counted once
+// (the pairs that change when the states or registries of [lo, hi] change; geometry unchanged)
+double nb_range_energy(const Chain& chain, int lo, int hi, bool use_list = true);
 // true if the pair energy depends on the tangents (helix-helix Gay-Berne or fit active)
 bool nb_anisotropic(const Input& in);
 // true if the pair energy depends on the helix handedness (nb_hh = fit): state moves that
@@ -67,3 +74,5 @@ double nb_local_energy(const Chain& chain, int i, bool use_list = true);
 // bead i is rotated rigidly about it (tangents of the tail rotate rigidly, the tangent at i does not)
 double nb_pivot_energy(const Chain& chain, int i);
 double total_nb_energy(const Chain& chain);
+// debug: the energy change the last move computed for its acceptance test (set by every move)
+extern double g_last_dE;

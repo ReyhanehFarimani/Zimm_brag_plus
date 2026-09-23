@@ -85,6 +85,7 @@ void Logger::summary(const Chain& chain, const MC& mc) {
     std::fflush(obs_);
     std::printf("# ---- summary ----\n");
     std::printf("# samples        = %ld\n", n_samples_);
+    if (in_.n_twist > 0) std::printf("# acc_twist      = %.4f\n", mc.acc_twist());
     if (n_samples_ > 0) {
         std::printf("# <helicity>     = %.6f\n", sum_helix_ / n_samples_);
         std::printf("# <E_state>      = %.6f\n", sum_estate_ / n_samples_);

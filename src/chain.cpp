@@ -1,4 +1,5 @@
 #include "chain.h"
+#include "registry.h"
 #include "pair_potential.h"
 
 #include <algorithm>
@@ -46,6 +47,7 @@ void Chain::init() {
         for (int i = 0; i < N_; ++i) pos[i] = Vec3(0.0, 0.0, i * b);
     }
     nl.dirty = true;
+    registry_init(*this, rng);          // one uniform registry per same-handed run
 }
 
 double Chain::bend_angle(int i) const {

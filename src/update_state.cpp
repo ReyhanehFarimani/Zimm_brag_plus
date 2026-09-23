@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include "pair_potential.h"
+#include "registry.h"
 
 namespace {
 
@@ -31,13 +32,23 @@ bool try_state_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
         if (q_new < -1 || q_new > 1) return false;       // R -> "+2" or L -> "-2": rejected
     }
 
-    const State old_s = chain.state[i];
-    // the non-bonded pair type of (i, j) changes with the state of i (helix-helix vs isotropic)
-    const double e_old = local_energy(chain, i) + (nb_anisotropic(in) ? nb_bead_energy(chain, i) : 0.0);
-    chain.state[i] = from_spin(q_new);
-    const double dE = local_energy(chain, i) + (nb_anisotropic(in) ? nb_bead_energy(chain, i) : 0.0) - e_old;
+    const State old_s = chain.state[i], new_s = from_spin(q_new);
+    // the non-bonded pair type of (i, j) changes with the state of i (helix-helix vs isotropic);
+    // with registries (nb_hh = db) the registry rules may also re-twist the run to the right of i,
+    // so every pair touching [i, hi] is included
+    const bool reg = in.nb_hh == "db";
+    const int hi = reg ? registry_change_hi(chain, i, old_s, new_s) : i;
+    const double e_old = local_energy(chain, i)
+        + (nb_anisotropic(in) ? (reg ? nb_range_energy(chain, i, hi) : nb_bead_energy(chain, i)) : 0.0);
+    chain.state[i] = new_s;
+    RegistryUndo undo;
+    if (reg) registry_on_state_change(chain, i, old_s, new_s, rng, undo);
+    const double dE = local_energy(chain, i)
+        + (nb_anisotropic(in) ? (reg ? nb_range_energy(chain, i, hi) : nb_bead_energy(chain, i)) : 0.0) - e_old;
 
+    g_last_dE = dE;
     if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
     chain.state[i] = old_s;                              // rejected: restore
+    if (reg) registry_undo(chain, undo);
     return false;
 }

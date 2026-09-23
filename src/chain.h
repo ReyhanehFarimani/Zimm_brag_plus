@@ -70,6 +70,10 @@ public:
 
     std::vector<State> state;
     std::vector<Vec3>  pos;
+    // registry direction of each residue (unit, perpendicular to tangent(i)); meaningful for helical
+    // residues only, kept by registry.cpp (creation/split/merge rules) and moved with the rod by the
+    // geometry moves.  Used by the tabulated pair potential (nb_hh = db).
+    std::vector<Vec3>  reg;
 
     // Verlet neighbour list for the non-bonded energy (built and used in pair_potential.cpp).
     // Invariant while !dirty: every bead is within skin/2 of its position at the last build (ref), so

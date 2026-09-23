@@ -16,6 +16,7 @@ public:
     double acc_hinge() const { return try_hinge_ ? double(acc_hinge_) / try_hinge_ : 0.0; }
     double acc_pivot() const { return try_pivot_ ? double(acc_pivot_) / try_pivot_ : 0.0; }
     double acc_flip()  const { return try_flip_  ? double(acc_flip_)  / try_flip_  : 0.0; }
+    double acc_twist() const { return try_twist_ ? double(acc_twist_) / try_twist_ : 0.0; }
 
 private:
     const Input& in_;
@@ -27,4 +28,5 @@ private:
     long try_hinge_ = 0, acc_hinge_ = 0;
     long try_pivot_ = 0, acc_pivot_ = 0;
     long try_flip_  = 0, acc_flip_  = 0;
+    long try_twist_ = 0, acc_twist_ = 0;
 };
