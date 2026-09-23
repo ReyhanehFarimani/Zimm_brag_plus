@@ -195,10 +195,10 @@ bool read_input(const std::string& filename, Input& in) {
         in.twist_alpha0_rad = in.twist_alpha0 * M_PI / 180.0;
         in.twist_on = in.twist_kappa > 0.0;
         if (in.twist_alpha0_rl < -998.0) in.twist_alpha0_rl = 180.0;
-        if (in.twist_kappa_rl < 0.0) {
-            const double sigma_deg = (in.hf_theta0 == 100) ? 96.2 : (in.hf_theta0 == 45) ? 27.4 : -1.0;
-            if (sigma_deg < 0.0) { std::fprintf(stderr, "input: twist_kappa_rl must be given for hf_theta0 = %d\n", in.hf_theta0); ok = false; }
-            else in.twist_kappa_rl = 1.0 / std::pow(sigma_deg * M_PI / 180.0, 2);
+        if (in.twist_kappa_rl < 0.0) {                 // 2K of the harmonic fits (cg_bonded_grd_folded_fits.csv, kind twist, RL)
+            const double kappa = (in.hf_theta0 == 100) ? 2.0 * 0.108 : (in.hf_theta0 == 45) ? 2.0 * 2.465 : -1.0;
+            if (kappa < 0.0) { std::fprintf(stderr, "input: twist_kappa_rl must be given for hf_theta0 = %d\n", in.hf_theta0); ok = false; }
+            else in.twist_kappa_rl = kappa;
         }
         in.twist_alpha0_rl_rad = in.twist_alpha0_rl * M_PI / 180.0;
     }

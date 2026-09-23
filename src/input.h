@@ -188,8 +188,9 @@ struct Input {
     double twist_alpha0 = -999.0;
     double twist_kappa  = -1.0;
     // the same term for OPPOSITE-handed neighbours (R.L), measured 2026-09-23 on the graded runs: the
-    // registries across an R|L junction are anti-aligned, dalpha_0 = 180 deg with sigma = 27.4 deg at
-    // theta0 = 45 (as sharp as R.R) and 96 deg at theta0 = 100; leaving them free (kappa = 0) gives every
+    // registries across an R|L junction are anti-aligned, dalpha_0 = 180 deg; harmonic fits (grant repo,
+    // cg_bonded_grd_folded_fits.csv) K = 2.47 kT/rad^2 at theta0 = 45 (sigma 26 deg, as sharp as R.R) and
+    // 0.11 at theta0 = 100 (broad, ~1 kT deep), kappa = 2K; leaving them free (kappa = 0) gives every
     // R|L junction ~1.7 kT of spurious registry entropy against R.R.  Coil-helix junctions ARE free
     // (measured uniform, R = 0.06) and carry no term.  Negative = the measured default of hf_theta0.
     double twist_alpha0_rl = -999.0;
