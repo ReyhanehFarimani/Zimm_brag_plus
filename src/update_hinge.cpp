@@ -61,11 +61,7 @@ void resample_bond(Chain& chain, int j, double theta, std::mt19937_64& rng) {
     for (int k = j + 1; k < chain.N(); ++k)
         chain.pos[k] = pivot + rotate(chain.pos[k] - pivot, axis, ang);
     for (int k = j + 1; k < chain.N(); ++k) chain.reg[k] = rotate(chain.reg[k], axis, ang);
-    if (is_helix(chain.state[j])) {
-        int lo, hi; registry_run(chain, j, lo, hi);
-        if (j == lo) chain.reg[j] = registry_transport(m_j_old, u_j_old, chain.tangent(j));
-        registry_rederive(chain, std::max(j, lo + 1));
-    }
+    chain.reg[j] = registry_transport(m_j_old, u_j_old, chain.tangent(j));
 }
 
 } // namespace
@@ -97,14 +93,16 @@ bool try_hinge_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     }
 
     const State new_s = from_spin(q_new);
+    // registries: m_i redrawn uniformly; the twist term of its junctions changes with the state
+    // (the hinge move is only allowed without non-bonded interactions, so no pair energy here)
+    const double e_tw_old = twist_range_energy(chain, i, i);
     chain.state[i] = new_s;
-    RegistryUndo undo;                                                      // registries: keep the run rules
-    registry_on_state_change(chain, i, old_s, new_s, rng, undo);
+    const Vec3 m_old = registry_resample(chain, i, rng);
 
     double e_new = site_energy(chain, i);
     if (i > 0)     e_new += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
     if (i < N - 1) e_new += state_energy(chain, i)     + bond_energy(chain, i);
-    double log_ratio = -(e_new - e_old) / in.kT;
+    double log_ratio = -(e_new - e_old + twist_range_energy(chain, i, i) - e_tw_old) / in.kT;
     for (int m = 0; m < 3; ++m) {
         if (!has[m]) continue;
         const BendParams& np = chain.bend_par(i - 1 + m);
@@ -114,7 +112,7 @@ bool try_hinge_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
 
     if (log_ratio < 0.0 && unif(rng) >= std::exp(log_ratio)) {
         chain.state[i] = old_s;                                             // rejected
-        registry_undo(chain, undo);
+        chain.reg[i] = m_old;
         return false;
     }
     // accepted: redraw every changed hinge from its new distribution (upstream first)

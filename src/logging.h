@@ -26,6 +26,7 @@ private:
     double sum_ebond_   = 0.0;
     double sum_ebend_   = 0.0;
     double sum_enb_     = 0.0;
+    double sum_etwist_  = 0.0;
     double sum_ree_     = 0.0;
     double sum_rg2_     = 0.0;
 };

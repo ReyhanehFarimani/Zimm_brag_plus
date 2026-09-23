@@ -97,6 +97,8 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "db_file")    { in.db_file = val; return true; }
     if (key == "n_twist")    return parse(val, in.n_twist);
     if (key == "twist_step") return parse(val, in.twist_step);
+    if (key == "twist_alpha0") return parse(val, in.twist_alpha0);
+    if (key == "twist_kappa")  return parse(val, in.twist_kappa);
     if (key == "debug_registry") return parse(val, in.debug_registry);
     if (key == "nl_skin")    return parse(val, in.nl_skin);
     if (key == "rod_L")     return parse(val, in.rod_L);
@@ -176,6 +178,20 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.nb_hh == "db" && in.n_twist <= 0) {
         std::fprintf(stderr, "input: nb_hh = db needs n_twist > 0 (the registries must be sampled)\n"); ok = false;
     }
+    if (in.nb_hh == "db") {                           // twist-term defaults measured at theta0 = 100 and 45
+        if (in.twist_alpha0 < -998.0) {
+            if (in.hf_theta0 == 100) in.twist_alpha0 = -135.3;
+            else if (in.hf_theta0 == 45) in.twist_alpha0 = 25.3;
+            else { std::fprintf(stderr, "input: twist_alpha0 must be given for hf_theta0 = %d\n", in.hf_theta0); ok = false; }
+        }
+        if (in.twist_kappa < 0.0) {
+            const double sigma_deg = (in.hf_theta0 == 100) ? 42.5 : (in.hf_theta0 == 45) ? 22.3 : -1.0;
+            if (sigma_deg < 0.0) { std::fprintf(stderr, "input: twist_kappa must be given for hf_theta0 = %d\n", in.hf_theta0); ok = false; }
+            else in.twist_kappa = 1.0 / std::pow(sigma_deg * M_PI / 180.0, 2);
+        }
+        in.twist_alpha0_rad = in.twist_alpha0 * M_PI / 180.0;
+        in.twist_on = in.twist_kappa > 0.0;
+    }
     if ((in.nb_hh == "gb" || in.nb_hh == "fit" || in.nb_hh == "db") && in.nb_type == "none") {
         std::fprintf(stderr, "input: nb_hh = %s needs nb_type = gauss or wca for the coil pairs\n", in.nb_hh.c_str()); ok = false;
     }
@@ -237,8 +253,9 @@ void print_input(const Input& in) {
     std::printf("# n_pivot     = %d  (max_rot = %g)\n", in.n_pivot, in.max_rot);
     std::printf("# n_flip      = %d\n", in.n_flip);
     if (in.nb_hh == "db")
-        std::printf("# db_file     = %s  (theta0 %d, hf_len %g); n_twist = %d, twist_step = %g deg\n",
-                    in.db_file.c_str(), in.hf_theta0, in.hf_len, in.n_twist, in.twist_step);
+        std::printf("# db_file     = %s  (theta0 %d, hf_len %g); n_twist = %d, twist_step = %g deg; "
+                    "twist term: alpha0 = %g deg (R.R), kappa = %g kT/rad^2\n",
+                    in.db_file.c_str(), in.hf_theta0, in.hf_len, in.n_twist, in.twist_step, in.twist_alpha0, in.twist_kappa);
     std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);

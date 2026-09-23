@@ -179,6 +179,16 @@ struct Input {
     std::string db_file  = "";
     int    n_twist    = 0;
     double twist_step = 30.0;          // degrees
+    // harmonic registry-twist term between sequential same-handed residues (registry.h):
+    //   E = 1/2 twist_kappa (dalpha - s twist_alpha0)^2, s = +1 R.R / -1 L.L, dalpha in (-pi, pi].
+    // twist_alpha0 in degrees (R.R sign), twist_kappa in kT/rad^2; a negative value means "the
+    // measured default of hf_theta0": 100 -> -135.3 deg, kappa = 1/sigma^2 with sigma = 42.5 deg
+    // (1.82 kT/rad^2); 45 -> +25.3 deg, sigma = 22.3 deg (6.60 kT/rad^2).  twist_kappa = 0 switches
+    // the term off (the registries are then coupled by the pair table only).
+    double twist_alpha0 = -999.0;
+    double twist_kappa  = -1.0;
+    double twist_alpha0_rad = 0.0;     // derived
+    bool   twist_on = false;           // derived: nb_hh = db and twist_kappa > 0
     int    debug_registry = 0;         // 1: check the registry invariants every sweep (slow)
 
     // Verlet neighbour list for the non-bonded energy. nl_skin = total skin width (code units):

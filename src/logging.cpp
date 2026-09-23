@@ -1,5 +1,6 @@
 #include "logging.h"
 #include "pair_potential.h"
+#include "registry.h"
 
 #include <cstdlib>
 #include <string>
@@ -27,8 +28,8 @@ Logger::~Logger() {
 }
 
 void Logger::header() {
-    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s\n",
-                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip");
+    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s\n",
+                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "E_twist", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip");
     std::fflush(obs_);
 }
 
@@ -45,11 +46,12 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     const double eb  = total_bond_energy(chain);
     const double ek  = total_bend_energy(chain);
     const double en  = total_nb_energy(chain);
+    const double et  = total_twist_energy(chain);
     const double ree = chain.end_to_end();
     const double rg2 = chain.rg2();
 
-    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
-                 sweep, nR, nL, th, es, eb, ek, en, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot(), mc.acc_flip());
+    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
+                 sweep, nR, nL, th, es, eb, ek, en, et, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot(), mc.acc_flip());
 
     std::fflush(obs_);   // keep the file usable if a long run is killed
 
@@ -59,6 +61,7 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     sum_ebond_ += eb;
     sum_ebend_ += ek;
     sum_enb_   += en;
+    sum_etwist_ += et;
     sum_ree_   += ree;
     sum_rg2_   += rg2;
 }
@@ -92,6 +95,7 @@ void Logger::summary(const Chain& chain, const MC& mc) {
         std::printf("# <E_bond>       = %.6f\n", sum_ebond_ / n_samples_);
         std::printf("# <E_bend>       = %.6f\n", sum_ebend_ / n_samples_);
         std::printf("# <E_nb>         = %.6f\n", sum_enb_   / n_samples_);
+        if (in_.nb_hh == "db") std::printf("# <E_twist>      = %.6f\n", sum_etwist_ / n_samples_);
         std::printf("# <Ree>          = %.6f\n", sum_ree_   / n_samples_);
         std::printf("# <Rg2>          = %.6f\n", sum_rg2_   / n_samples_);
     }

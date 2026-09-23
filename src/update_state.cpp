@@ -34,21 +34,22 @@ bool try_state_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
 
     const State old_s = chain.state[i], new_s = from_spin(q_new);
     // the non-bonded pair type of (i, j) changes with the state of i (helix-helix vs isotropic);
-    // with registries (nb_hh = db) the registry rules may also re-twist the run to the right of i,
-    // so every pair touching [i, hi] is included
+    // with registries (nb_hh = db) m_i is redrawn uniformly (symmetric proposal) and the twist
+    // term of the junctions (i-1, i), (i, i+1) changes with the states
     const bool reg = in.nb_hh == "db";
-    const int hi = reg ? registry_change_hi(chain, i, old_s, new_s) : i;
     const double e_old = local_energy(chain, i)
-        + (nb_anisotropic(in) ? (reg ? nb_range_energy(chain, i, hi) : nb_bead_energy(chain, i)) : 0.0);
+        + (nb_anisotropic(in) ? nb_bead_energy(chain, i) : 0.0)
+        + (reg ? twist_range_energy(chain, i, i) : 0.0);
     chain.state[i] = new_s;
-    RegistryUndo undo;
-    if (reg) registry_on_state_change(chain, i, old_s, new_s, rng, undo);
+    Vec3 m_old;
+    if (reg) m_old = registry_resample(chain, i, rng);
     const double dE = local_energy(chain, i)
-        + (nb_anisotropic(in) ? (reg ? nb_range_energy(chain, i, hi) : nb_bead_energy(chain, i)) : 0.0) - e_old;
+        + (nb_anisotropic(in) ? nb_bead_energy(chain, i) : 0.0)
+        + (reg ? twist_range_energy(chain, i, i) : 0.0) - e_old;
 
     g_last_dE = dE;
     if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
     chain.state[i] = old_s;                              // rejected: restore
-    if (reg) registry_undo(chain, undo);
+    if (reg) chain.reg[i] = m_old;
     return false;
 }

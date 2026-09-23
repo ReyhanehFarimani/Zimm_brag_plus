@@ -30,106 +30,82 @@ double registry_angle(const Vec3& u, const Vec3& a, const Vec3& b) {
 
 namespace {
 
-// maximal run of residues with state s starting at i and going right
-int run_right(const Chain& chain, int i, State s) {
-    int hi = i;
-    while (hi + 1 < chain.N() && chain.state[hi + 1] == s) ++hi;
-    return hi;
+// common axis of the junction (i, i+1) and the two registries projected onto its plane
+inline void junction(const Chain& chain, int i, Vec3& n, Vec3& p1, Vec3& p2) {
+    n = chain.tangent(i) + chain.tangent(i + 1);
+    const double nn = norm(n);
+    n = nn > 1e-12 ? (1.0 / nn) * n : chain.tangent(i);     // antiparallel tangents: degenerate, use t_i
+    p1 = chain.reg[i]     - dot(chain.reg[i], n) * n;
+    p2 = chain.reg[i + 1] - dot(chain.reg[i + 1], n) * n;
 }
 
-void twist_run(Chain& chain, int lo, int hi, double delta) {
-    for (int k = lo; k <= hi; ++k) chain.reg[k] = rotate(chain.reg[k], chain.tangent(k), delta);
+inline double wrap_pi(double a) {
+    while (a > M_PI)  a -= 2.0 * M_PI;
+    while (a <= -M_PI) a += 2.0 * M_PI;
+    return a;
 }
 
 } // namespace
 
-int registry_change_hi(const Chain& chain, int i, State s_old, State s_new) {
-    const int N = chain.N();
-    int hi = i;
-    if (is_helix(s_old) && i + 1 < N && chain.state[i + 1] == s_old)       // split off the right part
-        hi = run_right(chain, i + 1, s_old);
-    if (is_helix(s_new) && i > 0 && chain.state[i - 1] == s_new &&
-        i + 1 < N && chain.state[i + 1] == s_new)                           // merge: right run re-twisted
-        hi = std::max(hi, run_right(chain, i + 1, s_new));
-    return hi;
+double registry_twist(const Chain& chain, int i) {
+    Vec3 n, p1, p2;
+    junction(chain, i, n, p1, p2);
+    return registry_angle(n, p1, p2);
 }
 
-void registry_on_state_change(Chain& chain, int i, State s_old, State s_new,
-                              std::mt19937_64& rng, RegistryUndo& undo) {
-    const int N = chain.N();
-    std::uniform_real_distribution<double> unif(0.0, 1.0);
-    undo.lo = i;
-    undo.hi = registry_change_hi(chain, i, s_old, s_new);
-    undo.m.assign(chain.reg.begin() + undo.lo, chain.reg.begin() + undo.hi + 1);
-    // 1. the run that continued to the right of the OLD state is split off: fresh twist
-    if (is_helix(s_old) && i + 1 < N && chain.state[i + 1] == s_old)
-        twist_run(chain, i + 1, run_right(chain, i + 1, s_old), 2.0 * M_PI * unif(rng));
-    // 2. the NEW state joins / creates a run
-    if (!is_helix(s_new)) return;
-    const Vec3 u = chain.tangent(i);
-    const bool left  = i > 0 && chain.state[i - 1] == s_new;
-    const bool right = i + 1 < N && chain.state[i + 1] == s_new;
-    if (left) {
-        chain.reg[i] = registry_transport(chain.reg[i - 1], chain.tangent(i - 1), u);
-        if (right) {                                                        // merge: twist the right run to match
-            const Vec3 u1 = chain.tangent(i + 1);
-            const Vec3 want = registry_transport(chain.reg[i], u, u1);
-            twist_run(chain, i + 1, run_right(chain, i + 1, s_new),
-                      registry_angle(u1, chain.reg[i + 1], want));
-        }
-    } else if (right) {
-        chain.reg[i] = registry_transport(chain.reg[i + 1], chain.tangent(i + 1), u);
-    } else {
-        chain.reg[i] = registry_from_angle(u, 2.0 * M_PI * unif(rng));
-    }
+double twist_energy(const Chain& chain, int i) {
+    const State a = chain.state[i], b = chain.state[i + 1];
+    if (!is_helix(a) || a != b) return 0.0;
+    const Input& in = chain.input();
+    if (!in.twist_on) return 0.0;
+    const double d = wrap_pi(registry_twist(chain, i) - spin(a) * in.twist_alpha0_rad);
+    return 0.5 * in.twist_kappa * d * d;
 }
 
-void registry_undo(Chain& chain, const RegistryUndo& undo) {
-    for (int k = undo.lo; k <= undo.hi; ++k) chain.reg[k] = undo.m[k - undo.lo];
+double twist_range_energy(const Chain& chain, int lo, int hi) {
+    double e = 0.0;
+    for (int j = std::max(0, lo - 1); j <= std::min(chain.N() - 2, hi); ++j) e += twist_energy(chain, j);
+    return e;
+}
+
+double total_twist_energy(const Chain& chain) {
+    return twist_range_energy(chain, 1, chain.N() - 2);
 }
 
 void registry_init(Chain& chain, std::mt19937_64& rng) {
     std::uniform_real_distribution<double> unif(0.0, 1.0);
     const int N = chain.N();
     chain.reg.assign(N, Vec3(1, 0, 0));
-    int i = 0;
-    while (i < N) {
-        if (!is_helix(chain.state[i])) { ++i; continue; }
-        const int hi = run_right(chain, i, chain.state[i]);
-        chain.reg[i] = registry_from_angle(chain.tangent(i), 2.0 * M_PI * unif(rng));
-        for (int k = i + 1; k <= hi; ++k)
-            chain.reg[k] = registry_transport(chain.reg[k - 1], chain.tangent(k - 1), chain.tangent(k));
-        i = hi + 1;
+    for (int i = 0; i < N; ++i) chain.reg[i] = registry_from_angle(chain.tangent(i), 2.0 * M_PI * unif(rng));
+}
+
+Vec3 registry_resample(Chain& chain, int i, std::mt19937_64& rng) {
+    std::uniform_real_distribution<double> unif(0.0, 1.0);
+    const Vec3 old = chain.reg[i];
+    chain.reg[i] = registry_from_angle(chain.tangent(i), 2.0 * M_PI * unif(rng));
+    return old;
+}
+
+void registry_negate_twists(Chain& chain, int a, int b) {
+    // m_a kept; m_{j+1} is rebuilt from m_j so that the junction twist is minus the old one.  The old
+    // twists are read first (they are a function of the old registries only).
+    std::vector<double> tw;
+    for (int j = a; j < b; ++j) tw.push_back(registry_twist(chain, j));
+    for (int j = a; j < b; ++j) {
+        Vec3 n, p1, p2;
+        junction(chain, j, n, p1, p2);
+        // rotate the projected m_j about n by -twist, then carry it onto the plane of t_{j+1}
+        const double np1 = norm(p1);
+        Vec3 q = np1 > 1e-12 ? rotate((1.0 / np1) * p1, n, -tw[j - a]) : chain.reg[j];
+        chain.reg[j + 1] = registry_transport(q, n, chain.tangent(j + 1));
     }
-}
-
-void registry_run(const Chain& chain, int i, int& lo, int& hi) {
-    const State s = chain.state[i];
-    lo = hi = i;
-    while (lo > 0 && chain.state[lo - 1] == s) --lo;
-    while (hi + 1 < chain.N() && chain.state[hi + 1] == s) ++hi;
-}
-
-int registry_rederive(Chain& chain, int k) {
-    if (!is_helix(chain.state[k])) return k;
-    int lo, hi;
-    registry_run(chain, k, lo, hi);
-    for (int j = std::max(k, lo + 1); j <= hi; ++j)
-        chain.reg[j] = registry_transport(chain.reg[j - 1], chain.tangent(j - 1), chain.tangent(j));
-    return hi;
 }
 
 int registry_check(const Chain& chain, double tol) {
     int bad = 0;
-    const int N = chain.N();
-    for (int i = 0; i < N; ++i) {
-        if (!is_helix(chain.state[i])) continue;
+    for (int i = 0; i < chain.N(); ++i) {
         const Vec3 u = chain.tangent(i);
         if (std::fabs(dot(u, chain.reg[i])) > tol || std::fabs(norm(chain.reg[i]) - 1.0) > tol) ++bad;
-        if (i + 1 < N && chain.state[i + 1] == chain.state[i]) {
-            const Vec3 t = registry_transport(chain.reg[i], u, chain.tangent(i + 1));
-            if (norm(t - chain.reg[i + 1]) > tol) ++bad;
-        }
     }
     return bad;
 }

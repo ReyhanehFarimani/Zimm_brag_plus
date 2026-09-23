@@ -17,7 +17,7 @@
 #include "update_twist.h"
 
 static double total(const Chain& c) {
-    return total_state_energy(c) + total_bond_energy(c) + total_bend_energy(c) + total_nb_energy(c);
+    return total_state_energy(c) + total_bond_energy(c) + total_bend_energy(c) + total_nb_energy(c) + total_twist_energy(c);
 }
 
 int main(int argc, char** argv) {

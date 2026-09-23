@@ -1,5 +1,7 @@
 #include "update_flipdomain.h"
 
+#include <vector>
+
 #include <algorithm>
 #include <cmath>
 #include "pair_potential.h"
@@ -18,12 +20,12 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
         if (a > 0 && is_helix(chain.state[a - 1])) return false;
         if (b < N - 1 && is_helix(chain.state[b + 1])) return false;
     }                                                             // else (a) single site: a = b = i
-    // registries (nb_hh = db): a single-site flip inside a run splits it (the right part draws a
-    // fresh twist), so the affected range extends to the end of the run; a whole-run flip keeps
-    // its registry (it never merges: rejected above)
+    // registries (nb_hh = db): a single-site flip redraws m_i uniformly (symmetric proposal); a
+    // whole-domain flip negates the domain's junction twists (an involution, so the twist term is
+    // invariant and the flip is judged by the pair potential); the twist term of the edge
+    // junctions (a-1, a), (b, b+1) and, for a single site, of (i-1, i), (i, i+1) is included
     const bool reg = in.nb_hh == "db";
     const State t = (s == State::R) ? State::L : State::R;
-    const int hi_reg = (reg && a == b) ? registry_change_hi(chain, i, s, t) : b;
 
     // energies that can change: the edge bonds (a-1, a) and (b, b+1) and the bends at a-1, a, b, b+1;
     // with a handedness-dependent non-bonded potential (nb_hh = fit) also every non-bonded pair
@@ -39,8 +41,9 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
             if (k > 0 && j == js[k - 1]) continue;                 // avoid double counting when the domain is short
             e += bend_energy(chain, j);
         }
+        if (reg) e += twist_range_energy(chain, a, b);
         if (nb_chiral(in)) {
-            if (reg) { e += nb_range_energy(chain, a, hi_reg); return e; }
+            if (reg) { e += nb_range_energy(chain, a, b); return e; }
             const bool list = nl_ready(chain);                     // the geometry does not change in this move
             for (int k = a; k <= b; ++k) {
                 if (list) {
@@ -59,15 +62,19 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
         return e;
     };
     const double e_old = local();
+    std::vector<Vec3> reg_old;
+    if (reg) reg_old.assign(chain.reg.begin() + a, chain.reg.begin() + b + 1);
     for (int k = a; k <= b; ++k) chain.state[k] = t;
-    RegistryUndo undo;
-    if (reg && a == b) registry_on_state_change(chain, i, s, t, rng, undo);
+    if (reg) {
+        if (a == b) registry_resample(chain, i, rng);
+        else        registry_negate_twists(chain, a, b);
+    }
     const double dE = local() - e_old;
 
     std::uniform_real_distribution<double> unif(0.0, 1.0);
     g_last_dE = dE;
     if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) return true;
     for (int k = a; k <= b; ++k) chain.state[k] = s;              // rejected: restore
-    if (reg && a == b) registry_undo(chain, undo);
+    if (reg) std::copy(reg_old.begin(), reg_old.end(), chain.reg.begin() + a);
     return false;
 }
