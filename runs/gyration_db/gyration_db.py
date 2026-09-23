@@ -7,7 +7,14 @@ independent runs.  Reported per pattern for the tabulated potential (db) and the
 lambda_3/lambda_1, the run length in integrated autocorrelation times of Rg^2, and the
 acceptance of pivot and twist moves.  The allL / allR pair is the mirror check of the table.
 
-  ~/.conda/envs/sim_analysis/bin/python runs/gyration_db/gyration_db.py [--fig]
+--md-root <dir> (user 2026-09-23: "compare to monomer resolved value"): the matching
+monomer-resolved LAMMPS runs (grant repo, prelim/runs/cg_gyration_t45_grd_runs:
+cgblk_<40-block pattern>_m7_theta45_phi120_K20_grd, 280 monomers, 201 frames over 2e7 steps) are
+read, the gyration tensor of their 40 block CENTRES OF MASS (the points the MC beads represent)
+is evaluated on the second half with 8-block errors, and reported as "MD" rows with z-scores of
+db and fit against it.
+
+  ~/.conda/envs/sim_analysis/bin/python runs/gyration_db/gyration_db.py [--fig] [--md-root DIR]
 """
 import glob
 import os
@@ -19,6 +26,48 @@ import numpy as np
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 PATTERNS = ["allL", "allR", "halfL_C", "halfL_R"]
 POTS = ["db", "fit"]
+SEQ = {"allL": "L" * 40, "allR": "R" * 40, "halfL_C": "L" * 20 + "C" * 20, "halfL_R": "L" * 20 + "R" * 20}
+M = 7
+
+
+def md_frames(path):
+    """Unwrapped (N, 3) coordinates per LAMMPS dump frame (image flags applied)."""
+    for blk in open(path).read().split("ITEM: TIMESTEP")[1:]:
+        L = blk.splitlines()
+        try:
+            i = next(k for k, l in enumerate(L) if l.startswith("ITEM: ATOMS"))
+            b = next(k for k, l in enumerate(L) if l.startswith("ITEM: BOX BOUNDS"))
+        except StopIteration:
+            continue
+        box = np.array([float(L[b + 1 + k].split()[1]) - float(L[b + 1 + k].split()[0]) for k in range(3)])
+        cols = L[i].split()[2:]
+        ci = {c: j for j, c in enumerate(cols)}
+        rows = [l.split() for l in L[i + 1:] if len(l.split()) == len(cols)]
+        if not rows:
+            continue
+        rows.sort(key=lambda r: int(r[ci["id"]]))
+        xyz = np.array([[float(r[ci["x"]]), float(r[ci["y"]]), float(r[ci["z"]])] for r in rows])
+        img = np.array([[int(r[ci["ix"]]), int(r[ci["iy"]]), int(r[ci["iz"]])] for r in rows])
+        yield xyz + img * box
+
+
+def md_reference(root, theta0=45):
+    """{pattern: dict(lam, err, nfr)} from the block centres of mass of the fine runs."""
+    out = {}
+    for pat, seq in SEQ.items():
+        tag = f"cgblk_{seq}_m7_theta{theta0}_phi120_K20_grd"
+        d = os.path.join(root, tag)
+        if not os.path.isfile(os.path.join(d, f"data.{tag}.final")):
+            continue
+        P = np.array([xyz.reshape(-1, M, 3).mean(1) for xyz in md_frames(os.path.join(d, f"traj.{tag}.lammpstrj"))])
+        P = P[len(P) // 2:]
+        c = P - P.mean(1, keepdims=True)
+        T = np.einsum("fia,fib->fab", c, c) / P.shape[1]
+        lam = np.sort(np.linalg.eigvalsh(T), axis=1)[:, ::-1]
+        nb = 8
+        blk = lam[: len(lam) // nb * nb].reshape(nb, -1, 3).mean(1)
+        out[pat] = dict(lam=lam.mean(0), err=blk.std(0, ddof=1) / np.sqrt(nb), n=len(lam))
+    return out
 
 
 def read_frames(f):
@@ -115,6 +164,25 @@ def collect():
     return res
 
 
+def report_md(res, md):
+    print(f"\nmonomer-resolved reference (block centres of mass, second half, 8-block errors):")
+    print(f"{'pattern':>8} {'frames':>6} {'lam1':>8} {'+-':>5} {'lam2':>7} {'+-':>5} {'lam3':>7} {'+-':>5} {'Rg2':>7} {'l2/l1':>6} {'l3/l1':>6} | z(db - MD) | z(fit - MD)")
+    for pat in PATTERNS:
+        if pat not in md:
+            continue
+        m = md[pat]; lam, err = m["lam"], m["err"]
+        zs = []
+        for pot in POTS:
+            if (pat, pot) in res:
+                r = res[(pat, pot)]
+                z = (r["lam"] - lam) / np.sqrt(r["err"] ** 2 + err ** 2)
+                zs.append(" ".join(f"{v:+5.1f}" for v in z))
+            else:
+                zs.append("   -   ")
+        print(f"{pat:>8} {m['n']:>6} {lam[0]:>8.2f} {err[0]:>5.2f} {lam[1]:>7.2f} {err[1]:>5.2f} {lam[2]:>7.2f} {err[2]:>5.2f} "
+              f"{lam.sum():>7.2f} {lam[1] / lam[0]:>6.3f} {lam[2] / lam[0]:>6.3f} | {zs[0]} | {zs[1]}")
+
+
 def report(res):
     print(f"{'pattern':>8} {'pot':>4} {'seeds':>5} {'lam1':>8} {'+-':>5} {'lam2':>7} {'+-':>5} {'lam3':>7} {'+-':>5} "
           f"{'Rg2':>7} {'l2/l1':>6} {'l3/l1':>6} {'<E_nb>':>7} {'HH<3a':>6} {'HH<2a':>6} {'run/tau':>7} {'acc_piv':>7} {'acc_tw':>6}")
@@ -139,7 +207,7 @@ def report(res):
         print(f"\nmirror check allL vs allR (db): z = {z[0]:+.1f} {z[1]:+.1f} {z[2]:+.1f}")
 
 
-def figure(res):
+def figure(res, md=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -147,6 +215,11 @@ def figure(res):
                          "xtick.top": True, "ytick.right": True})
     fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.4), sharex=True)
     x = np.arange(len(PATTERNS))
+    if md:
+        for i in range(3):
+            y = [md[p]["lam"][i] if p in md else np.nan for p in PATTERNS]
+            e = [md[p]["err"][i] if p in md else np.nan for p in PATTERNS]
+            ax[i].errorbar(x, y, e, fmt="D", ms=6, capsize=3, color="k", label="monomer-resolved (block COMs)")
     for k, pot in enumerate(POTS):
         for i in range(3):
             y = [res[(p, pot)]["lam"][i] if (p, pot) in res else np.nan for p in PATTERNS]
@@ -167,5 +240,9 @@ if __name__ == "__main__":
     if not res:
         print("no finished runs"); sys.exit(1)
     report(res)
+    md = None
+    if "--md-root" in sys.argv:
+        md = md_reference(sys.argv[sys.argv.index("--md-root") + 1])
+        report_md(res, md)
     if "--fig" in sys.argv:
-        figure(res)
+        figure(res, md)

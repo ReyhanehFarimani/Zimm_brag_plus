@@ -21,11 +21,13 @@
 # again with another NPROC to add workers to a live batch.
 cd "$(dirname "$0")"
 BIN=${BIN:-../../../zimm}
-JS=${JS:-"1 2 3 4 5 6"}
+JS=${JS:-"1 2 3 3.5 4 4.5 5 5.5 6"}
 SEEDS=${SEEDS:-"1 2 3"}
 NEQ=${NEQ:-100000}
 NSW=${NSW:-1000000}
 ess_of () { case $1 in 0.51) echo "0 1 1.5 2 2.5 2.9";; 0.62) echo "1 1.8 2.6 3.4 4.2";; 0.87) echo "1 2.3 3.6 4.9 6.2";; esac; }
+# ESS="0 1" overrides the per-range list (rerun after the k = 2K fix, 2026-09-23: reference + potential as fitted)
+[ -n "$ESS" ] && ess_of () { echo "$ESS"; }
 mkdir -p inputs out logs
 n=0
 for SC in ${SCS:-0.51 0.62}; do for J in $JS; do for ES in $(ess_of $SC); do for s in 1 2 3 4 5 6 7 8 9; do
