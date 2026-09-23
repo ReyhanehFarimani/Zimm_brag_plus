@@ -23,7 +23,8 @@ import sys
 
 import numpy as np
 
-COLOR = {"R": (0.890, 0.286, 0.282), "L": (0.929, 0.631, 0.000), "C": (0.165, 0.471, 0.839)}
+COLOR = {"R": (0.890, 0.286, 0.282), "L": (0.929, 0.631, 0.000), "C": (0.165, 0.471, 0.839),
+         "X": (0.55, 0.55, 0.55)}       # X = the star core (a sphere of radius rod_D / 2 = core_radius)
 COLOR_REG = (0.15, 0.15, 0.15)
 REG_LEN = 1.6          # arrow protrusion beyond the rod surface [code length units = a]
 REG_WIDTH = 0.18
@@ -56,7 +57,8 @@ def modify(frame, data):
     shape[helix, 0] = shape[helix, 1] = 0.5 * D[helix]
     shape[helix, 2] = np.maximum(L[helix] - D[helix], 0.0)
     parts.create_property("Aspherical Shape", data=shape)
-    parts.create_property("Radius", data=np.where(helix, 0.5 * D, 0.5 * COIL_D))
+    core = species == "X"
+    parts.create_property("Radius", data=np.where(helix, 0.5 * D, np.where(core, 0.5 * rod_D, 0.5 * COIL_D)))
     parts.create_property("Color", data=np.array([COLOR[s if s in COLOR else "C"] for s in species]))
     # registry arrow from the rod axis, helices only (a coil's registry is a dummy)
     reg = np.asarray(parts["registry"], dtype=float).copy()
@@ -113,7 +115,14 @@ def save_state(traj, path):
     print(f"wrote session state {path}  (source: {traj}; change the file in the GUI to view another run)")
 
 
-if __name__ == "__main__":
+def _run_as_script():
+    """True when executed as a file by ovitos/python.  OVITO's GUI Python-script modifier also executes
+    this file with __name__ == "__main__" (sys.argv = [its path], __file__ = None), and the argparse
+    block below must not run there: its sys.exit aborts the script before the GUI picks up modify()."""
+    return __name__ == "__main__" and bool(globals().get("__file__"))
+
+
+if _run_as_script():
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("traj")

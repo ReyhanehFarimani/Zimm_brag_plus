@@ -30,6 +30,7 @@ Logger::~Logger() {
 void Logger::header() {
     std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s\n",
                  "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "E_twist", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip");
+    if (in_.n_arms > 0) std::fprintf(obs_, "# (star: E_bond includes the core wall and graft tethers; Ree = first-to-last residue of arm 0)\n");
     std::fflush(obs_);
 }
 
@@ -43,7 +44,7 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     const int    nL  = chain.count(State::L);
     const double th  = chain.helicity();
     const double es  = total_state_energy(chain);
-    const double eb  = total_bond_energy(chain);
+    const double eb  = total_bond_energy(chain) + total_core_energy(chain);
     const double ek  = total_bend_energy(chain);
     const double en  = total_nb_energy(chain);
     const double et  = total_twist_energy(chain);
@@ -74,8 +75,11 @@ void Logger::dump_config(long sweep, const Chain& chain) {
     // tangent itself; registry = the registry direction m_i (unit, perpendicular to the tangent; a
     // coil's is the dummy that enters no energy); rod_L, rod_D = rod length and diameter (helix), 0 and
     // sphere diameter (coil); spin (-1/0/+1)
+    const int extra = chain.n_arms() > 0 ? 1 : 0;                    // the core as one more particle (species X)
     std::fprintf(conf_, "%d\nProperties=species:S:1:pos:R:3:orientation:R:4:tangent:R:3:registry:R:3:rod_L:R:1:rod_D:R:1:spin:I:1 sweep=%ld\n",
-                 chain.N(), sweep);
+                 chain.N() + extra, sweep);
+    if (extra) std::fprintf(conf_, "X %14.8f %14.8f %14.8f %10.6f %10.6f %10.6f %10.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %6.3f %6.3f %2d\n",
+                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0 * in_.core_radius, 0);
     for (int i = 0; i < chain.N(); ++i) {
         const bool helix = is_helix(chain.state[i]);
         double q[4] = {0.0, 0.0, 0.0, 1.0};

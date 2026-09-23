@@ -54,6 +54,7 @@ double registry_twist(const Chain& chain, int i) {
 }
 
 double twist_energy(const Chain& chain, int i) {
+    if (!chain.has_bond(i)) return 0.0;
     const State a = chain.state[i], b = chain.state[i + 1];
     if (!is_helix(a) || !is_helix(b)) return 0.0;
     const Input& in = chain.input();

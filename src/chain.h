@@ -30,6 +30,18 @@ public:
     int N() const { return N_; }
     const Input& input() const { return in_; }
 
+    // topology: linear chain (n_arms = 0) or a star of n_arms arms of arm_len residues (residue i belongs
+    // to arm i / arm_len).  A bond i joins i and i+1 only inside an arm; a bend at i needs i-1, i, i+1 in
+    // one arm.  Every energy loop goes through these, so a star is the same code with these gates.
+    bool same_arm(int i, int j) const { return n_arms_ == 0 || i / arm_len_ == j / arm_len_; }
+    int  arm_of(int i) const { return n_arms_ ? i / arm_len_ : 0; }
+    int  arm_first(int i) const { return n_arms_ ? (i / arm_len_) * arm_len_ : 0; }
+    int  arm_last(int i) const { return n_arms_ ? arm_first(i) + arm_len_ - 1 : N_ - 1; }
+    bool has_bond(int i) const { return i >= 0 && i + 1 < N_ && same_arm(i, i + 1); }
+    bool has_bend(int i) const { return i >= 1 && i + 1 < N_ && same_arm(i - 1, i + 1); }
+    int  n_arms() const { return n_arms_; }
+    std::vector<Vec3> graft;           // graft site of each arm (star only)
+
     // Which parameter set applies.
     //   bond i (between i and i+1): pair class of (state[i], state[i+1])
     //   bend at i (i-1, i, i+1):     triple class of (state[i-1], state[i], state[i+1])
@@ -93,6 +105,7 @@ public:
 
 private:
     int N_;
+    int n_arms_ = 0, arm_len_ = 0;
     const Input& in_;
     bool pair_keyed_bends_;
 };

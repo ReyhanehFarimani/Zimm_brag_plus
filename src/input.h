@@ -211,6 +211,17 @@ struct Input {
     // tail (P(theta > 90 deg) 0.13 vs 0.17 measured; Rg2 +10 % for the all-coil 15-block chain).
     int    nb_min_sep = 3;
 
+    // STAR architecture (user 2026-09-23, "star with 20 arms"): n_arms > 0 makes the chain n_arms arms of
+    // N residues each, grafted to a fixed spherical core at the origin (radius core_radius, bead units a).
+    // Bonds, bends, state couplings and registry twists exist only within an arm; non-bonded pairs act
+    // between all residues (within an arm from separation nb_min_sep, across arms always).  Every residue
+    // feels a harmonic wall at core_radius + 1/2 (core_k), and the first residue of each arm is tethered
+    // (graft_k) to its graft site, one of n_arms Fibonacci points on the sphere of radius core_radius + 1/2.
+    int    n_arms      = 0;
+    double core_radius = 4.0;
+    double core_k      = 50.0;
+    double graft_k     = 10.0;
+
     // rod geometry written to the trajectory for helical residues (coil residues are spheres of radius rod_r)
     double rod_L = 2.5;               // rod length
     double rod_r = 1.0;               // rod radius (column rod_D = 2 rod_r)

@@ -104,6 +104,10 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "debug_registry") return parse(val, in.debug_registry);
     if (key == "nl_skin")    return parse(val, in.nl_skin);
     if (key == "nb_min_sep") return parse(val, in.nb_min_sep);
+    if (key == "n_arms")      return parse(val, in.n_arms);
+    if (key == "core_radius") return parse(val, in.core_radius);
+    if (key == "core_k")      return parse(val, in.core_k);
+    if (key == "graft_k")     return parse(val, in.graft_k);
     if (key == "rod_L")     return parse(val, in.rod_L);
     if (key == "rod_r")      return parse(val, in.rod_r);
     if (key == "seed")       return parse(val, in.seed);
@@ -214,6 +218,12 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.nb_hh == "fit" && in.hf_len <= 0.0) {
         std::fprintf(stderr, "input: hf_len must be > 0\n"); ok = false;
     }
+    if (in.n_arms > 0 && (in.n_hinge > 0 || !in.state_pattern.empty())) {
+        std::fprintf(stderr, "input: a star (n_arms > 0) supports neither hinge moves nor state_pattern\n"); ok = false;
+    }
+    if (in.n_arms > 0 && in.core_radius <= 0.0) {
+        std::fprintf(stderr, "input: core_radius must be > 0 for a star\n"); ok = false;
+    }
     if (in.nb_type != "none" && in.n_hinge > 0) {
         std::fprintf(stderr, "input: the hinge move (n_hinge > 0) is only valid without non-bonded interactions\n"); ok = false;
     }
@@ -268,6 +278,9 @@ void print_input(const Input& in) {
                     in.db_file.c_str(), in.hf_theta0, in.hf_len, in.n_twist, in.twist_step, in.twist_alpha0, in.twist_kappa,
                     in.twist_alpha0_rl, in.twist_kappa_rl);
     std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g; pairs |i-j| >= %d)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut, in.nb_min_sep);
+    if (in.n_arms > 0)
+        std::printf("# STAR        = %d arms x %d residues on a core of radius %g a (wall k = %g, graft k = %g)\n",
+                    in.n_arms, in.N, in.core_radius, in.core_k, in.graft_k);
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);
     if (in.nb_hh == "fit")

@@ -17,7 +17,7 @@
 #include "update_twist.h"
 
 static double total(const Chain& c) {
-    return total_state_energy(c) + total_bond_energy(c) + total_bend_energy(c) + total_nb_energy(c) + total_twist_energy(c);
+    return total_state_energy(c) + total_bond_energy(c) + total_bend_energy(c) + total_nb_energy(c) + total_twist_energy(c) + total_core_energy(c);
 }
 
 int main(int argc, char** argv) {
@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     in.nl_skin = (argc > 2) ? atof(argv[2]) : 1.0;
     Chain chain(in); chain.init();
     std::mt19937_64 rng(7);
-    std::uniform_int_distribution<int> pick(0, in.N - 1), pick_inner(1, in.N - 2);
+    std::uniform_int_distribution<int> pick(0, chain.N() - 1), pick_inner(1, chain.N() - 2);
     const char* names[5] = {"state", "position", "pivot", "flip", "twist"};
     long n_acc[5] = {0, 0, 0, 0, 0}, n_bad[5] = {0, 0, 0, 0, 0};
     double worst[5] = {0, 0, 0, 0, 0};

@@ -7,7 +7,9 @@
 #include <random>
 
 Chain::Chain(const Input& in)
-    : state(in.N, State::Coil), pos(in.N), N_(in.N), in_(in), pair_keyed_bends_(in.bend_key == "pair") {
+    : state(in.n_arms > 0 ? in.n_arms * in.N : in.N, State::Coil), pos(in.n_arms > 0 ? in.n_arms * in.N : in.N),
+      N_(in.n_arms > 0 ? in.n_arms * in.N : in.N), n_arms_(in.n_arms), arm_len_(in.N), in_(in),
+      pair_keyed_bends_(in.bend_key == "pair") {
     const double rc = nb_cutoff_max(in);
     nl.rc_max2    = rc * rc;
     nl.on         = in.nb_type != "none" && in.nl_skin > 0.0;
@@ -33,7 +35,18 @@ void Chain::init() {
 
     // bonds start at the coil-coil length
     const double b = in_.p(Pair::CC).bond_len;
-    if (in_.init == "walk") {
+    if (n_arms_ > 0) {
+        // star: graft sites = Fibonacci points on the sphere of radius core_radius + 1/2; each arm starts at
+        // its site and runs radially outward as a straight chain (no overlaps, no core penetration)
+        graft.resize(n_arms_);
+        const double R0 = in_.core_radius + 0.5, ga = M_PI * (3.0 - std::sqrt(5.0));
+        for (int k = 0; k < n_arms_; ++k) {
+            const double z = 1.0 - 2.0 * (k + 0.5) / n_arms_, r = std::sqrt(std::max(0.0, 1.0 - z * z)), ph = ga * k;
+            const Vec3 u(r * std::cos(ph), r * std::sin(ph), z);
+            graft[k] = R0 * u;
+            for (int m = 0; m < arm_len_; ++m) pos[k * arm_len_ + m] = (R0 + m * b) * u;
+        }
+    } else if (in_.init == "walk") {
         // freely-jointed random walk: uniformly random bond directions
         pos[0] = Vec3(0.0, 0.0, 0.0);
         for (int i = 1; i < N_; ++i) {
@@ -76,11 +89,11 @@ int Chain::count(State s) const {
 
 Vec3 Chain::tangent(int i) const {
     Vec3 t;
-    if (i > 0)      { const Vec3 b = bond(i - 1); t = t + (1.0 / norm(b)) * b; }
-    if (i < N_ - 1) { const Vec3 b = bond(i);     t = t + (1.0 / norm(b)) * b; }
+    if (has_bond(i - 1)) { const Vec3 b = bond(i - 1); t = t + (1.0 / norm(b)) * b; }
+    if (has_bond(i))     { const Vec3 b = bond(i);     t = t + (1.0 / norm(b)) * b; }
     const double n = norm(t);
     // the two bonds are exactly antiparallel (folded back): tangent undefined, fall back to the outgoing bond
-    if (n < 1e-12) { const Vec3 b = (i < N_ - 1) ? bond(i) : bond(i - 1); return (1.0 / norm(b)) * b; }
+    if (n < 1e-12) { const Vec3 b = has_bond(i) ? bond(i) : bond(i - 1); return (1.0 / norm(b)) * b; }
     return (1.0 / n) * t;
 }
 

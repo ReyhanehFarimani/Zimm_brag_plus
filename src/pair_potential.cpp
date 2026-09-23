@@ -15,6 +15,7 @@ double bond_energy_of(const Chain& chain, int i, double r) {
 }
 
 double bond_energy(const Chain& chain, int i) {
+    if (!chain.has_bond(i)) return 0.0;
     return bond_energy_of(chain, i, norm(chain.bond(i)));
 }
 
@@ -50,6 +51,7 @@ double hinge_log_weight(const BendParams& p) {
 }
 
 double bend_energy(const Chain& chain, int i) {
+    if (!chain.has_bend(i)) return 0.0;
     return bend_energy_of(chain, i, chain.bond(i - 1), chain.bond(i));
 }
 
@@ -60,6 +62,7 @@ double total_bend_energy(const Chain& chain) {
 }
 
 double state_energy(const Chain& chain, int i) {
+    if (!chain.has_bond(i)) return 0.0;
     return chain.input().pair_energy(chain.bond_class(i));
 }
 
@@ -289,7 +292,7 @@ double db_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rv
 double nb_pair_energy(const Chain& chain, int a, int b) {
     const Input& in = chain.input();
     if (a > b) std::swap(a, b);                  // canonical order: the pair energy must not depend on it
-    if (b - a < in.nb_min_sep) return 0.0;       // 1-2 and (default) 1-3 pairs: bonded terms only
+    if (b - a < in.nb_min_sep && chain.same_arm(a, b)) return 0.0;   // 1-2 and (default) 1-3 pairs: bonded terms only
     const Vec3 rvec = chain.pos[b] - chain.pos[a];
     const double r2 = norm2(rvec);
     if (r2 >= chain.nl.rc_max2) return 0.0;      // beyond every cutoff: skip the tangents
@@ -313,14 +316,14 @@ double nb_range_energy(const Chain& chain, int lo, int hi, bool use_list) {
     for (int k = lo; k <= hi; ++k) {
         if (list) {
             for (int j : chain.nl.nbrs[k]) {
-                if (j >= lo && j <= hi) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
+                if (j >= lo && j <= hi) { if (j > k) e += nb_pair_energy(chain, k, j); continue; }
                 e += nb_pair_energy(chain, k, j);
             }
             continue;
         }
         for (int j = 0; j < N; ++j) {
-            if (j >= lo && j <= hi) { if (j > k + 1) e += nb_pair_energy(chain, k, j); continue; }
-            if (j < k - 1 || j > k + 1) e += nb_pair_energy(chain, k, j);
+            if (j >= lo && j <= hi) { if (j > k) e += nb_pair_energy(chain, k, j); continue; }
+            if (j != k) e += nb_pair_energy(chain, k, j);
         }
     }
     return e;
@@ -346,7 +349,7 @@ bool nl_ready(const Chain& chain) {
     nl.nbrs.resize(N);
     for (int i = 0; i < N; ++i) nl.nbrs[i].clear();
     for (int i = 0; i < N; ++i)
-        for (int j = i + 2; j < N; ++j)
+        for (int j = i + 1; j < N; ++j)
             if (norm2(chain.pos[j] - chain.pos[i]) < nl.r_list2) { nl.nbrs[i].push_back(j); nl.nbrs[j].push_back(i); }
     nl.dirty = false;
     ++nl.n_build;
@@ -364,7 +367,7 @@ bool nl_verify(const Chain& chain) {
     const int N = chain.N();
     for (int i = 0; i < N; ++i) {
         if (norm2(chain.pos[i] - nl.ref[i]) > nl.half_skin2) return false;          // the invariant itself
-        for (int j = i + 2; j < N; ++j)
+        for (int j = i + 1; j < N; ++j)
             if (norm2(chain.pos[j] - chain.pos[i]) < nl.rc_max2
                 && !std::binary_search(nl.nbrs[i].begin(), nl.nbrs[i].end(), j)) return false;
     }
@@ -380,7 +383,7 @@ double nb_bead_energy(const Chain& chain, int i) {
     }
     const int N = chain.N();
     for (int j = 0; j < N; ++j)
-        if (j < i - 1 || j > i + 1) e += nb_pair_energy(chain, i, j);
+        if (j != i) e += nb_pair_energy(chain, i, j);
     return e;
 }
 
@@ -394,32 +397,34 @@ double nb_local_energy(const Chain& chain, int i, bool use_list) {
         if (!nb_anisotropic(in)) return nb_bead_energy(chain, i);
         for (int a = lo; a <= hi; ++a)
             for (int b : chain.nl.nbrs[a]) {
-                if (b >= lo && b <= hi) { if (b > a + 1) e += nb_pair_energy(chain, a, b); continue; }   // inside the window: once
+                if (b >= lo && b <= hi) { if (b > a) e += nb_pair_energy(chain, a, b); continue; }   // inside the window: once
                 e += nb_pair_energy(chain, a, b);
             }
         return e;
     }
     if (!nb_anisotropic(in)) {
         for (int j = 0; j < N; ++j)
-            if (j < i - 1 || j > i + 1) e += nb_pair_energy(chain, i, j);
+            if (j != i) e += nb_pair_energy(chain, i, j);
         return e;
     }
     for (int a = lo; a <= hi; ++a) {
         for (int b = 0; b < N; ++b) {
-            if (b >= lo && b <= hi) { if (b > a + 1) e += nb_pair_energy(chain, a, b); continue; }   // inside the window: once
-            if (b < a - 1 || b > a + 1) e += nb_pair_energy(chain, a, b);
+            if (b >= lo && b <= hi) { if (b > a) e += nb_pair_energy(chain, a, b); continue; }   // inside the window: once
+            e += nb_pair_energy(chain, a, b);
         }
     }
     return e;
 }
 
 double nb_pivot_energy(const Chain& chain, int i) {
+    // pairs between the tail (i+1 .. last of i's arm), which the pivot moves rigidly, and everything else
     if (chain.input().nb_type[0] == 'n') return 0.0;
     double e = 0.0;
-    const int N = chain.N();
-    for (int a = 0; a <= i; ++a)
-        for (int b = std::max(i, a + 2); b < N; ++b)
-            e += nb_pair_energy(chain, a, b);
+    const int N = chain.N(), t0 = i + 1, t1 = chain.arm_last(i);
+    for (int a = t0; a <= t1; ++a) {
+        for (int b = 0; b < t0; ++b) e += nb_pair_energy(chain, a, b);
+        for (int b = t1 + 1; b < N; ++b) e += nb_pair_energy(chain, a, b);
+    }
     return e;
 }
 
@@ -428,7 +433,31 @@ double total_nb_energy(const Chain& chain) {
     double e = 0.0;
     const int N = chain.N();
     for (int a = 0; a < N; ++a)
-        for (int b = a + 2; b < N; ++b)
+        for (int b = a + 1; b < N; ++b)
             e += nb_pair_energy(chain, a, b);
     return e;
+}
+
+
+// ---------------------------------------------------------------- star core (n_arms > 0)
+double core_energy_at(const Chain& chain, int i, const Vec3& p) {
+    const Input& in = chain.input();
+    if (chain.n_arms() == 0) return 0.0;
+    const double d0 = in.core_radius + 0.5, r = norm(p);
+    double e = 0.0;
+    if (r < d0) e += 0.5 * in.core_k * (d0 - r) * (d0 - r);                 // harmonic wall at the core surface
+    if (i == chain.arm_first(i)) e += 0.5 * in.graft_k * norm2(p - chain.graft[chain.arm_of(i)]);   // tether
+    return e;
+}
+
+double core_energy(const Chain& chain, int i) { return core_energy_at(chain, i, chain.pos[i]); }
+
+double core_range_energy(const Chain& chain, int lo, int hi) {
+    double e = 0.0;
+    for (int k = lo; k <= hi; ++k) e += core_energy(chain, k);
+    return e;
+}
+
+double total_core_energy(const Chain& chain) {
+    return chain.n_arms() ? core_range_energy(chain, 0, chain.N() - 1) : 0.0;
 }

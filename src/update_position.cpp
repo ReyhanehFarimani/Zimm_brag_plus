@@ -18,12 +18,11 @@ Vec3 bond_with(const Chain& chain, int j, int i, const Vec3& p) {
 // energy of everything that depends on bead i, evaluated with bead i at position p:
 // the bonds (i-1,i), (i,i+1) and the bends at i-1, i, i+1
 double local_energy(const Chain& chain, int i, const Vec3& p) {
-    const int N = chain.N();
-    double e = 0.0;
-    if (i > 0)     e += bond_energy_of(chain, i - 1, norm(bond_with(chain, i - 1, i, p)));
-    if (i < N - 1) e += bond_energy_of(chain, i,     norm(bond_with(chain, i,     i, p)));
+    double e = core_energy_at(chain, i, p);
+    if (chain.has_bond(i - 1)) e += bond_energy_of(chain, i - 1, norm(bond_with(chain, i - 1, i, p)));
+    if (chain.has_bond(i))     e += bond_energy_of(chain, i,     norm(bond_with(chain, i,     i, p)));
     for (int k = i - 1; k <= i + 1; ++k) {
-        if (k < 1 || k > N - 2) continue;
+        if (!chain.has_bend(k)) continue;
         e += bend_energy_of(chain, k, bond_with(chain, k - 1, i, p), bond_with(chain, k, i, p));
     }
     return e;

@@ -14,11 +14,11 @@ bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng)
     std::uniform_int_distribution<int> coin(0, 1);
     int a = i, b = i;
     if (coin(rng)) {                                              // (b) whole maximal domain
-        while (a > 0 && chain.state[a - 1] == s) --a;
-        while (b < N - 1 && chain.state[b + 1] == s) ++b;
+        while (chain.has_bond(a - 1) && chain.state[a - 1] == s) --a;
+        while (chain.has_bond(b) && chain.state[b + 1] == s) ++b;
         // a flip that merges with a helical neighbour cannot be reversed by the same move: reject
-        if (a > 0 && is_helix(chain.state[a - 1])) return false;
-        if (b < N - 1 && is_helix(chain.state[b + 1])) return false;
+        if (chain.has_bond(a - 1) && is_helix(chain.state[a - 1])) return false;
+        if (chain.has_bond(b) && is_helix(chain.state[b + 1])) return false;
     }                                                             // else (a) single site: a = b = i
     // registries (nb_hh = db): a single-site flip redraws m_i uniformly (symmetric proposal); a
     // whole-domain flip negates the domain's junction twists (an involution, so the twist term is

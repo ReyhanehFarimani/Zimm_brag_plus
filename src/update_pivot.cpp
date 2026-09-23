@@ -8,7 +8,9 @@
 
 bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) {
     const int N = chain.N();
-    if (i < 1 || i > N - 2) return false;
+    // the tail i+1 .. last residue of i's arm rotates rigidly about bead i (a star arm ends at arm_last)
+    const int t1 = chain.arm_last(i);
+    if (i + 1 > t1) return false;
     std::uniform_real_distribution<double> unif(0.0, 1.0);
 
     // random unit axis and angle
@@ -21,20 +23,20 @@ bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     // (i-1, i) and (i, i+1) changes, the tail's junctions are rigidly rotated (unchanged)
     const bool reg = in.nb_hh == "db";
     auto e_all = [&]() {
-        double e = bend_energy(chain, i) + nb_pivot_energy(chain, i);
+        double e = bend_energy(chain, i) + nb_pivot_energy(chain, i) + core_range_energy(chain, i + 1, t1);
         if (reg) e += twist_range_energy(chain, i, i);
         return e;
     };
     const double e_old = e_all();
 
-    std::vector<Vec3> old_tail(chain.pos.begin() + i + 1, chain.pos.end());
+    std::vector<Vec3> old_tail(chain.pos.begin() + i + 1, chain.pos.begin() + t1 + 1);
     const Vec3 pivot = chain.pos[i];
     std::vector<Vec3> old_reg;
     const Vec3 u_i_old = chain.tangent(i);
-    if (reg) old_reg.assign(chain.reg.begin() + i, chain.reg.end());
-    for (int k = i + 1; k < N; ++k) chain.pos[k] = pivot + rotate(chain.pos[k] - pivot, axis, ang);
+    if (reg) old_reg.assign(chain.reg.begin() + i, chain.reg.begin() + t1 + 1);
+    for (int k = i + 1; k <= t1; ++k) chain.pos[k] = pivot + rotate(chain.pos[k] - pivot, axis, ang);
     if (reg) {
-        for (int k = i + 1; k < N; ++k) chain.reg[k] = rotate(chain.reg[k], axis, ang);
+        for (int k = i + 1; k <= t1; ++k) chain.reg[k] = rotate(chain.reg[k], axis, ang);
         chain.reg[i] = registry_transport(old_reg[0], u_i_old, chain.tangent(i));
     }
 

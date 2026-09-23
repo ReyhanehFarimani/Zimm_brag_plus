@@ -74,5 +74,11 @@ double nb_local_energy(const Chain& chain, int i, bool use_list = true);
 // bead i is rotated rigidly about it (tangents of the tail rotate rigidly, the tangent at i does not)
 double nb_pivot_energy(const Chain& chain, int i);
 double total_nb_energy(const Chain& chain);
+// star core (n_arms > 0): harmonic wall at core_radius + 1/2 for every residue and the graft tether of the
+// first residue of each arm; zero for a linear chain
+double core_energy_at(const Chain& chain, int i, const Vec3& p);
+double core_energy(const Chain& chain, int i);
+double core_range_energy(const Chain& chain, int lo, int hi);
+double total_core_energy(const Chain& chain);
 // debug: the energy change the last move computed for its acceptance test (set by every move)
 extern double g_last_dE;

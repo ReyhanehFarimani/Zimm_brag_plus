@@ -9,12 +9,11 @@ namespace {
 // everything whose parameters depend on state[i], at the current geometry:
 // state + bond energy of the two bonds touching i, and the bends at i-1, i, i+1
 double local_energy(const Chain& chain, int i) {
-    const int N = chain.N();
     double e = site_energy(chain, i);
-    if (i > 0)     e += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
-    if (i < N - 1) e += state_energy(chain, i)     + bond_energy(chain, i);
+    if (chain.has_bond(i - 1)) e += state_energy(chain, i - 1) + bond_energy(chain, i - 1);
+    if (chain.has_bond(i))     e += state_energy(chain, i)     + bond_energy(chain, i);
     for (int k = i - 1; k <= i + 1; ++k)
-        if (k >= 1 && k <= N - 2) e += bend_energy(chain, k);
+        if (chain.has_bend(k)) e += bend_energy(chain, k);
     return e;
 }
 
