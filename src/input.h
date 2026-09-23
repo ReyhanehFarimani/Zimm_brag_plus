@@ -195,6 +195,12 @@ struct Input {
     //   < 0 = automatic (4 sqrt(3) max_disp: a single displacement never exceeds half of it), 0 = off
     //   (all-pairs loops). The list changes the cost only, the energies are identical.
     double nl_skin   = -1.0;
+    // Minimum residue separation |i - j| of a NON-BONDED pair (2026-09-23): the bonded bend potentials
+    // are Boltzmann inversions of the monomer-resolved chains and already contain every 1-3
+    // interaction, so the coil core / helix pair potential must start at 1-4 (nb_min_sep = 3).
+    // With 2 (the old behaviour) the 1-3 core is counted twice and the chain loses its large-bend
+    // tail (P(theta > 90 deg) 0.13 vs 0.17 measured; Rg2 +10 % for the all-coil 15-block chain).
+    int    nb_min_sep = 3;
 
     // rod geometry written to the trajectory for helical residues (coil residues are spheres of radius rod_r)
     double rod_L = 2.5;               // rod length

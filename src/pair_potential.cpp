@@ -289,6 +289,7 @@ double db_energy(const Input& in, const Vec3& u1, const Vec3& u2, const Vec3& rv
 double nb_pair_energy(const Chain& chain, int a, int b) {
     const Input& in = chain.input();
     if (a > b) std::swap(a, b);                  // canonical order: the pair energy must not depend on it
+    if (b - a < in.nb_min_sep) return 0.0;       // 1-2 and (default) 1-3 pairs: bonded terms only
     const Vec3 rvec = chain.pos[b] - chain.pos[a];
     const double r2 = norm2(rvec);
     if (r2 >= chain.nl.rc_max2) return 0.0;      // beyond every cutoff: skip the tangents

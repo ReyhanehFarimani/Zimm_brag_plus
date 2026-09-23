@@ -101,6 +101,7 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "twist_kappa")  return parse(val, in.twist_kappa);
     if (key == "debug_registry") return parse(val, in.debug_registry);
     if (key == "nl_skin")    return parse(val, in.nl_skin);
+    if (key == "nb_min_sep") return parse(val, in.nb_min_sep);
     if (key == "rod_L")     return parse(val, in.rod_L);
     if (key == "rod_r")      return parse(val, in.rod_r);
     if (key == "seed")       return parse(val, in.seed);
@@ -256,7 +257,7 @@ void print_input(const Input& in) {
         std::printf("# db_file     = %s  (theta0 %d, hf_len %g); n_twist = %d, twist_step = %g deg; "
                     "twist term: alpha0 = %g deg (R.R), kappa = %g kT/rad^2\n",
                     in.db_file.c_str(), in.hf_theta0, in.hf_len, in.n_twist, in.twist_step, in.twist_alpha0, in.twist_kappa);
-    std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut);
+    std::printf("# nb_type     = %s  (A = %g, sigma = %g, rcut = %g; pairs |i-j| >= %d)\n", in.nb_type.c_str(), in.nb_A, in.nb_sigma, in.nb_rcut, in.nb_min_sep);
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);
     if (in.nb_hh == "fit")
