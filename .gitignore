@@ -16,3 +16,4 @@ batch*.log
 make.log
 tools/decompose_nb
 runs/**/decomp/
+helix_pair_db_t*.bin
