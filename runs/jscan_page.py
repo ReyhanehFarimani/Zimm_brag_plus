@@ -31,7 +31,7 @@ def counts(d):
 
 def refresh():
     for camp, s in SCANS.items():
-        if counts(s["d"])[0] == 0:
+        if not glob.glob(os.path.join(s["d"], "out", "J*_obs.dat")):
             continue
         subprocess.run(["nice", "-n", "10", PY, s["script"]], cwd=s["d"], check=False,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900)
@@ -54,10 +54,10 @@ def main():
         status.append(f'<div><div class="k">{camp} runs finished</div><div class="v">{f"{done} / {n}" if n else "not started"}</div></div>')
         for name, cap in s["figs"]:
             p = os.path.join(s["d"], name + ".png")
-            if os.path.isfile(p) and done > 0:
+            if os.path.isfile(p) and glob.glob(os.path.join(s["d"], "out", "J*_obs.dat")):
                 shutil.copyfile(p, os.path.join(a.out, "img", f"{name}_{camp}.png"))
                 figs.append(f'<figure class="fig"><img src="img/{name}_{camp}.png?v={int(os.path.getmtime(p))}" alt="{cap}">'
-                            f'<figcaption><span>{cap}</span><span class="mono">{camp}/jscan_db/{name} · finished runs only</span></figcaption></figure>')
+                            f'<figcaption><span>{cap}</span><span class="mono">{camp}/jscan_db/{name} · filled = finished, hollow = still running</span></figcaption></figure>')
             else:
                 figs.append(f'<figure class="fig"><div class="missing">{cap}: no finished runs yet</div></figure>')
     page = f"""<title>J Scan Transitions</title>
@@ -84,9 +84,10 @@ figcaption {{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
     <h1>J Scan Transitions</h1>
     <p class="sub">Zimm–Bragg chain, N = 200, E<sub>HH</sub> = −J, E<sub>RL</sub> = +J, E<sub>CH</sub> = 0, with the
     six-argument helix–helix TABLE (r, β<sub>A</sub>, β<sub>B</sub>, ψ, α<sub>A</sub>, α<sub>B</sub>) and the registry twist
-    term — no ε<sub>s</sub> series. J = 3.75 … 5.5 in steps of 0.25 across the handedness crossover (exact J*(N = 200) = 4.68
-    at θ₀ = 45°, 4.19 at 100°) plus 1, 2, 3, 6 outside; 3 seeds, 1 M sweeps. Bonded constants k = 2K of the fits, non-bonded
-    pairs from 1-4 (both fixed 2026-09-23). Blue curves: exact 1D chain without non-bonded interactions, N = 100 … 1600.
+    terms (R·R / L·L: Δα₀ = ±25.3°, κ = 6.6 k<sub>B</sub>T/rad²; R·L: 180°, κ = 4.9 at θ₀ = 45°) — no ε<sub>s</sub> series.
+    J = 5.5 … 7.5 in steps of 0.25 across the crossovers with three seeds, plus 1, 2, 3, 3.75 … 5.25, 8, 9, 10 with one seed;
+    1 M sweeps (exact 1D crossover J*(N = 200) = 4.68 at θ₀ = 45°; the explicit registries shift it up by ≈ 2). Bonded constants k = 2K of the fits, non-bonded
+    pairs from 1-4 (both fixed 2026-09-23); restarted 19:31 with the R·L twist term. Blue curves: exact 1D chain without non-bonded interactions, N = 100 … 1600.
     Redrawn from the finished runs.</p>
   </header>
   <div class="status">{"".join(status)}<div><div class="k">Last update</div><div class="v">{now}</div></div>
