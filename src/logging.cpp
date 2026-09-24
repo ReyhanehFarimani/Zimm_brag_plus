@@ -28,8 +28,8 @@ Logger::~Logger() {
 }
 
 void Logger::header() {
-    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s\n",
-                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "E_twist", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip");
+    std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s %11s %11s %11s\n",
+                 "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "E_twist", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip", "acc_seg", "acc_segflip", "acc_torsion");
     if (in_.n_arms > 0 && in_.box > 0.0) std::fprintf(obs_, "# (periodic box %g: %d free chains; Ree and Rg2 are per-chain means)\n", in_.box, in_.n_arms);
     else if (in_.n_arms > 0) std::fprintf(obs_, "# (star: E_bond includes the core wall and graft tethers; Ree = first-to-last residue of arm 0)\n");
     std::fflush(obs_);
@@ -52,8 +52,8 @@ void Logger::sample(long sweep, const Chain& chain, const MC& mc) {
     const double ree = chain.end_to_end();
     const double rg2 = chain.rg2();
 
-    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
-                 sweep, nR, nL, th, es, eb, ek, en, et, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot(), mc.acc_flip());
+    std::fprintf(obs_, "  %10ld %6d %6d %10.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %10.4f %10.4f %10.4f %10.4f %10.4f %11.4f %11.4f %11.4f\n",
+                 sweep, nR, nL, th, es, eb, ek, en, et, ree, rg2, mc.acc_state(), mc.acc_pos(), mc.acc_hinge(), mc.acc_pivot(), mc.acc_flip(), mc.acc_seg(), mc.acc_segflip(), mc.acc_torsion());
 
     std::fflush(obs_);   // keep the file usable if a long run is killed
 
@@ -119,6 +119,9 @@ void Logger::summary(const Chain& chain, const MC& mc) {
     std::printf("# acc_hinge      = %.4f\n", mc.acc_hinge());
     std::printf("# acc_pivot      = %.4f\n", mc.acc_pivot());
     std::printf("# acc_flip       = %.4f\n", mc.acc_flip());
+    std::printf("# acc_seg        = %.4f\n", mc.acc_seg());
+    std::printf("# acc_segflip    = %.4f\n", mc.acc_segflip());
+    std::printf("# acc_torsion    = %.4f\n", mc.acc_torsion());
     std::printf("# nl_builds      = %ld  (incremental bead updates %ld)\n", chain.nl.n_build, chain.nl.n_update);
     std::printf("# -----------------\n");
 }

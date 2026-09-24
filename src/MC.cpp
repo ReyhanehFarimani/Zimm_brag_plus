@@ -4,6 +4,7 @@
 #include "update_state.h"
 #include "update_hinge.h"
 #include "update_pivot.h"
+#include "update_segment.h"
 #include "update_flipdomain.h"
 #include "update_twist.h"
 #include "registry.h"
@@ -34,6 +35,14 @@ void MC::sweep() {
         ++try_flip_;
         if (try_domain_flip(chain_, pick(rng_), in_, rng_)) ++acc_flip_;
     }
+    for (int k = 0; k < (in_.freeze_states ? 0 : in_.n_segflip); ++k) {
+        ++try_segflip_;
+        if (try_segment_flip(chain_, pick(rng_), in_, rng_)) ++acc_segflip_;
+    }
+    for (int k = 0; k < in_.n_seg; ++k) {
+        ++try_seg_;
+        if (try_segment_move(chain_, pick(rng_), in_, rng_)) ++acc_seg_;
+    }
     for (int k = 0; k < in_.n_twist; ++k) {
         ++try_twist_;
         if (try_twist_move(chain_, pick(rng_), in_, rng_)) ++acc_twist_;
@@ -48,6 +57,10 @@ void MC::sweep() {
             ++try_pivot_;
             if (try_pivot_move(chain_, pick_inner(rng_), in_, rng_)) ++acc_pivot_;
         }
+        for (int k = 0; k < in_.n_torsion; ++k) {
+            ++try_torsion_;
+            if (try_pivot_move(chain_, pick_inner(rng_), in_, rng_, true)) ++acc_torsion_;
+        }
     }
 }
 
@@ -58,4 +71,7 @@ void MC::reset_acceptance() {
     try_pivot_ = acc_pivot_ = 0;
     try_flip_  = acc_flip_  = 0;
     try_twist_ = acc_twist_ = 0;
+    try_seg_ = acc_seg_ = 0;
+    try_segflip_ = acc_segflip_ = 0;
+    try_torsion_ = acc_torsion_ = 0;
 }

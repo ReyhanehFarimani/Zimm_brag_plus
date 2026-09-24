@@ -223,6 +223,17 @@ struct Input {
     // no graft), placed as randomly oriented rods at random positions; every non-bonded distance (pair energies,
     // neighbour list) uses the minimum image; positions stay unwrapped (bonded terms use direct differences).
     // Ree and Rg2 in the obs file are then per-chain means.  Needs box > 2 (cutoff + nl_skin).
+    // Segment moves for dense systems (2026-09-24): n_seg crankshaft rotations per sweep of 1..seg_len_max beads
+    // about the axis through their anchors by up to seg_rot rad (update_segment.cpp); n_segflip handedness flips
+    // of a random helical segment of 1..segflip_len_max residues (update_flipdomain.cpp); n_torsion tail
+    // rotations about the bond (i, i+1) by up to torsion_rot rad (a pivot with the bond as axis).
+    int    n_seg         = 0;
+    int    seg_len_max   = 3;
+    double seg_rot       = 0.5;
+    int    n_segflip     = 0;
+    int    segflip_len_max = 8;
+    int    n_torsion     = 0;
+    double torsion_rot   = 0.5;
     double box         = 0.0;
     // RESTART (2026-09-24, user: "restart using the last point"): read states, positions and registries of one
     // frame of a trajectory written by this code (<out_prefix>_conf.xyz, extended xyz) instead of the fresh

@@ -21,6 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
 
 LOG = [  # (time, text) -- the campaign log shown at the bottom, newest first
+    ("13:25", "Three new MC moves (harness: 0 mismatches on linear, star and box, list off/on): crankshaft rotation of 1–3 beads about the axis through their anchors (38 % accepted in the dense box against 2.5 % for whole-tail pivots), handedness flips of arbitrary helical segments, and tail torsions about a bond. box500 restarted again from its latest frames (run 3, J*_s1r2) with one crankshaft per residue per sweep, 10k sweeps; box400 (400 chains, box 58.5 a, same density) launched fresh with the same moves, 1000 + 10k sweeps."),
     ("12:15", "Box RESTARTED from the last dumped frame of run 1 (production sweep 6000, states + positions + registries, new seed; the reader reproduces the logged energies of that frame exactly) for 20k more sweeps. Run 1 (~6700 sweeps) is archived in prev_run1/. New input keys restart_file / restart_frame."),
     ("04:50", "Box relaunched with dense-system move steps: max_disp 0.3 (was 1.0), pivot angle 0.3 rad (was π), skin 2. The first launch accepted 3.5 % of position moves and 0.3 % of pivots and sat frozen: helicity 0.91 at J = 9 against 1.00, creeping up 0.002 per 100 sweeps. Its 250 production sweeps are archived in prev_disp1/."),
     ("03:02", "Periodic box launched: 500 free chains × 50 residues, box 63 a (residue density 0.1 = monomer density 0.7), J = 9, 8, 7, 6 on 4 workers. New code: `box` input with minimum-image non-bonded interactions; a cell grid for pivots; the neighbour list re-references a bead before an uncovered trial move (the all-pairs fallback was 95 % of the cost of large systems)."),
@@ -157,38 +158,38 @@ def main():
 
     # ---- periodic box (runs/box_gen.sh) as a second system on the page
     box_html = ""
-    bd = os.path.join(HERE, "t45", "box500")
-    if glob.glob(os.path.join(bd, "inputs", "J*_s*.dat")):
-        bkv = read_kv(sorted(glob.glob(os.path.join(bd, "inputs", "J*_s*.dat")))[0])
-        r = subprocess.run(["nice", "-n", "10", PY, os.path.join(HERE, "star_plot.py")], cwd=bd, capture_output=True, text=True, timeout=900)
-        btab = []
-        for l in r.stdout.splitlines():
-            m = re.match(r"\s*([\d.]+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(.*)", l)
-            if m:
-                J, n, th, tht, am, amt, u4, u4t, rg, enb, etw, rest = m.groups(); part = re.search(r"partial: (\d+)k", rest)
-                btab.append(f"<tr><td>{float(J):g}</td><td>{n}</td><td>{float(th):.3f}</td><td class='th'>{float(tht):.3f}</td><td>{float(am):.3f}</td><td class='th'>{float(amt):.3f}</td>"
-                            f"<td>{float(u4):.2f}</td><td class='th'>{float(u4t):.2f}</td><td>{float(rg):.0f}</td><td>{float(enb):.1f}</td><td>{float(etw):.0f}</td><td class='mono'>{'≥ ' + part.group(1) + 'k, running' if part else 'finished'}</td></tr>")
-        bstat = []
-        for f in sorted(glob.glob(os.path.join(bd, "inputs", "J*_s*.dat"))):
-            b = os.path.basename(f)[:-4]; ob = obs_rows(os.path.join(bd, "out", b + "_obs.dat")); last = int(ob[-1][0]) if ob else -1
-            done = os.path.isfile(os.path.join(bd, "logs", b + ".log")) and "summary" in open(os.path.join(bd, "logs", b + ".log")).read()
-            bstat.append(f'<span class="cell {"finished" if done else "running"}">{b.split("_")[0][1:]}<small>{"done" if done else (f"{int(bkv["n_equil"]) + last + 1} sw" if last >= 0 else "equil.")}</small></span>')
-        fig = ""
-        src = os.path.join(bd, "transitions_star.png")
-        if os.path.isfile(src) and glob.glob(os.path.join(bd, "out", "J*_obs.dat")):
-            shutil.copyfile(src, os.path.join(a.out, "img", "transitions_box.png"))
-            fig = f'<figure class="fig"><img src="img/transitions_box.png?v={int(os.path.getmtime(src))}" alt="box transition"><figcaption><span>Same panels for the periodic box; blue = {bkv["n_arms"]} independent 1D chains with registries (handedness ceiling of independent chains ≈ 0.036).</span><span class="mono">t45/box500/transitions_star.png</span></figcaption></figure>'
-        rho = int(bkv["n_arms"]) * int(bkv["N"]) / float(bkv["box"]) ** 3
-        box_html = f'''
-  <section>
-    <h2>Periodic box: {bkv["n_arms"]} free chains × {bkv["N"]} residues</h2>
-    <p class="muted" style="margin:0 0 8px">Cubic box of {float(bkv["box"]):.1f} a, residue density {rho:.3f} a⁻³ (monomer density {7 * rho:.2f} with 7 monomers per residue), minimum-image non-bonded interactions,
-    one pivot and one flip per chain per sweep, {int(bkv["n_equil"])} + {int(bkv["n_sweeps"]) // 1000}k sweeps, J = 9, 8, 7, 6, one seed each; max_disp {float(bkv.get("max_disp", 1)):g}, pivot angle {float(bkv.get("max_rot", 3.14)):g} rad.{" Restarted 12:15 from the last frame of the previous run (its sweep 6000); sweeps count from 0 again." if bkv.get("restart_file") else " Relaunched 04:50."}</p>
-    <div class="grid">{"".join(bstat)}</div>
-    {fig}
-    <div class="tbl"><table><thead><tr><th>J</th><th>seeds</th><th>θ</th><th class="th">theory</th><th>⟨|m|⟩</th><th class="th">theory</th><th>U₄</th><th class="th">theory</th><th>⟨R_g²⟩ per chain [a²]</th><th>⟨E_nb⟩</th><th>⟨E_twist⟩</th><th>status</th></tr></thead>
-    <tbody>{"".join(btab) or "<tr><td colspan='12' class='muted'>no run has 20 production rows yet</td></tr>"}</tbody></table></div>
-  </section>'''
+    for bd in sorted(glob.glob(os.path.join(HERE, "t45", "box*")), reverse=True):
+      if glob.glob(os.path.join(bd, "inputs", "J*_s*.dat")):
+          bkv = read_kv(sorted(glob.glob(os.path.join(bd, "inputs", "J*_s*.dat")))[0])
+          r = subprocess.run(["nice", "-n", "10", PY, os.path.join(HERE, "star_plot.py")], cwd=bd, capture_output=True, text=True, timeout=900)
+          btab = []
+          for l in r.stdout.splitlines():
+              m = re.match(r"\s*([\d.]+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(.*)", l)
+              if m:
+                  J, n, th, tht, am, amt, u4, u4t, rg, enb, etw, rest = m.groups(); part = re.search(r"partial: (\d+)k", rest)
+                  btab.append(f"<tr><td>{float(J):g}</td><td>{n}</td><td>{float(th):.3f}</td><td class='th'>{float(tht):.3f}</td><td>{float(am):.3f}</td><td class='th'>{float(amt):.3f}</td>"
+                              f"<td>{float(u4):.2f}</td><td class='th'>{float(u4t):.2f}</td><td>{float(rg):.0f}</td><td>{float(enb):.1f}</td><td>{float(etw):.0f}</td><td class='mono'>{'≥ ' + part.group(1) + 'k, running' if part else 'finished'}</td></tr>")
+          bstat = []
+          for f in sorted(glob.glob(os.path.join(bd, "inputs", "J*_s*.dat"))):
+              b = os.path.basename(f)[:-4]; ob = obs_rows(os.path.join(bd, "out", b + "_obs.dat")); last = int(ob[-1][0]) if ob else -1
+              done = os.path.isfile(os.path.join(bd, "logs", b + ".log")) and "summary" in open(os.path.join(bd, "logs", b + ".log")).read()
+              bstat.append(f'<span class="cell {"finished" if done else "running"}">{b.split("_")[0][1:]}<small>{"done" if done else (f"{int(bkv["n_equil"]) + last + 1} sw" if last >= 0 else "equil.")}</small></span>')
+          fig = ""
+          src = os.path.join(bd, "transitions_star.png")
+          if os.path.isfile(src) and glob.glob(os.path.join(bd, "out", "J*_obs.dat")):
+              tag = os.path.basename(bd); shutil.copyfile(src, os.path.join(a.out, "img", f"transitions_{tag}.png"))
+              fig = f'<figure class="fig"><img src="img/transitions_{tag}.png?v={int(os.path.getmtime(src))}" alt="box transition"><figcaption><span>Same panels for the periodic box; blue = {bkv["n_arms"]} independent 1D chains with registries (handedness ceiling of independent chains ≈ 0.036).</span><span class="mono">t45/{tag}/transitions_star.png</span></figcaption></figure>'
+          rho = int(bkv["n_arms"]) * int(bkv["N"]) / float(bkv["box"]) ** 3
+          box_html += f'''
+    <section>
+      <h2>Periodic box {tag[3:]}: {bkv["n_arms"]} free chains × {bkv["N"]} residues</h2>
+      <p class="muted" style="margin:0 0 8px">Cubic box of {float(bkv["box"]):.1f} a, residue density {rho:.3f} a⁻³ (monomer density {7 * rho:.2f} with 7 monomers per residue), minimum-image non-bonded interactions,
+      one pivot and one flip per chain per sweep, {int(bkv["n_equil"])} + {int(bkv["n_sweeps"]) // 1000}k sweeps, J = 9, 8, 7, 6, one seed each; max_disp {float(bkv.get("max_disp", 1)):g}, pivot angle {float(bkv.get("max_rot", 3.14)):g} rad.{" Continued from the last frame of the previous run (restart_file); sweeps count from 0 again." if bkv.get("restart_file") else ""}{" Segment moves: " + bkv["n_seg"] + " crankshafts of 1–" + bkv.get("seg_len_max", "3") + " beads, " + bkv["n_segflip"] + " segment flips and " + bkv["n_torsion"] + " torsions per sweep." if bkv.get("n_seg") else ""}</p>
+      <div class="grid">{"".join(bstat)}</div>
+      {fig}
+      <div class="tbl"><table><thead><tr><th>J</th><th>seeds</th><th>θ</th><th class="th">theory</th><th>⟨|m|⟩</th><th class="th">theory</th><th>U₄</th><th class="th">theory</th><th>⟨R_g²⟩ per chain [a²]</th><th>⟨E_nb⟩</th><th>⟨E_twist⟩</th><th>status</th></tr></thead>
+      <tbody>{"".join(btab) or "<tr><td colspan='12' class='muted'>no run has 20 production rows yet</td></tr>"}</tbody></table></div>
+    </section>'''
 
     os.makedirs(os.path.join(a.out, "img"), exist_ok=True)
     # ---- snapshots (tools/render_box.py, tools/ovito_preset.py): every png in <dir>/snapshots of the box and the star

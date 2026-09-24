@@ -6,7 +6,7 @@
 #include "pair_potential.h"
 #include "registry.h"
 
-bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) {
+bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng, bool torsion) {
     const int N = chain.N();
     // the tail i+1 .. last residue of i's arm rotates rigidly about bead i (a star arm ends at arm_last)
     const int t1 = chain.arm_last(i);
@@ -14,9 +14,19 @@ bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     std::uniform_real_distribution<double> unif(0.0, 1.0);
 
     // random unit axis and angle
-    const double cz = 2.0 * unif(rng) - 1.0, sz = std::sqrt(std::max(0.0, 1.0 - cz * cz)), ph = 2.0 * M_PI * unif(rng);
-    const Vec3 axis(sz * std::cos(ph), sz * std::sin(ph), cz);
-    const double ang = in.max_rot * (2.0 * unif(rng) - 1.0);
+    Vec3 axis;
+    double ang;
+    if (torsion) {                                                  // about the bond i -> i+1
+        axis = chain.pos[i + 1] - chain.pos[i];
+        const double L = norm(axis);
+        if (L < 1e-9) return false;
+        axis = (1.0 / L) * axis;
+        ang = in.torsion_rot * (2.0 * unif(rng) - 1.0);
+    } else {
+        const double cz = 2.0 * unif(rng) - 1.0, sz = std::sqrt(std::max(0.0, 1.0 - cz * cz)), ph = 2.0 * M_PI * unif(rng);
+        axis = Vec3(sz * std::cos(ph), sz * std::sin(ph), cz);
+        ang = in.max_rot * (2.0 * unif(rng) - 1.0);
+    }
 
     // registries (nb_hh = db): the tail rotates rigidly (registries with it); residue i's tangent
     // changes, its registry is carried by the minimal rotation; the twist term of the junctions

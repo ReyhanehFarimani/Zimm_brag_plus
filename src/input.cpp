@@ -107,6 +107,13 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "nb_min_sep") return parse(val, in.nb_min_sep);
     if (key == "n_arms")      return parse(val, in.n_arms);
     if (key == "box")         return parse(val, in.box);
+    if (key == "n_seg")           return parse(val, in.n_seg);
+    if (key == "seg_len_max")     return parse(val, in.seg_len_max);
+    if (key == "seg_rot")         return parse(val, in.seg_rot);
+    if (key == "n_segflip")       return parse(val, in.n_segflip);
+    if (key == "segflip_len_max") return parse(val, in.segflip_len_max);
+    if (key == "n_torsion")       return parse(val, in.n_torsion);
+    if (key == "torsion_rot")     return parse(val, in.torsion_rot);
     if (key == "restart_file")  { in.restart_file = val; return true; }
     if (key == "restart_frame") return parse(val, in.restart_frame);
     if (key == "pivot_grid")  return parse(val, in.pivot_grid);
@@ -292,6 +299,9 @@ void print_input(const Input& in) {
     if (in.n_arms > 0)
         std::printf("# STAR        = %d arms x %d residues on a core of radius %g a (wall k = %g, graft k = %g)\n",
                     in.n_arms, in.N, in.core_radius, in.core_k, in.graft_k);
+    if (in.n_seg > 0 || in.n_segflip > 0 || in.n_torsion > 0)
+        std::printf("# segment moves: n_seg = %d (1..%d beads, +-%g rad), n_segflip = %d (1..%d residues), n_torsion = %d (+-%g rad)\n",
+                    in.n_seg, in.seg_len_max, in.seg_rot, in.n_segflip, in.segflip_len_max, in.n_torsion, in.torsion_rot);
     if (!in.restart_file.empty())
         std::printf("# restart_file = %s  (frame %d)\n", in.restart_file.c_str(), in.restart_frame);
     if (in.box > 0.0)

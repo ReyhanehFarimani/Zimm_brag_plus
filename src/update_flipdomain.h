@@ -11,3 +11,5 @@
 // NOTE: assumes the non-bonded interaction is invariant under R <-> L (it depends only on is_helix), which
 // holds for the isotropic cores and the Gay-Berne rods. Coil residue: no move (counted as rejected).
 bool try_domain_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng);
+// segment flip: residues i .. i + len - 1 (len uniform in 1..segflip_len_max), all helical, flip their handedness
+bool try_segment_flip(Chain& chain, int i, const Input& in, std::mt19937_64& rng);
