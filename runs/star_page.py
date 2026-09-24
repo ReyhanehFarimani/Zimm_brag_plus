@@ -162,6 +162,7 @@ def main():
       if glob.glob(os.path.join(bd, "inputs", "J*_s*.dat")):
           bkv = read_kv(sorted(glob.glob(os.path.join(bd, "inputs", "J*_s*.dat")))[0])
           r = subprocess.run(["nice", "-n", "10", PY, os.path.join(HERE, "star_plot.py")], cwd=bd, capture_output=True, text=True, timeout=900)
+          subprocess.run(["nice", "-n", "10", PY, os.path.join(HERE, "box_series.py")], cwd=bd, capture_output=True, text=True, timeout=900)
           btab = []
           for l in r.stdout.splitlines():
               m = re.match(r"\s*([\d.]+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(.*)", l)
@@ -174,11 +175,15 @@ def main():
               b = os.path.basename(f)[:-4]; ob = obs_rows(os.path.join(bd, "out", b + "_obs.dat")); last = int(ob[-1][0]) if ob else -1
               done = os.path.isfile(os.path.join(bd, "logs", b + ".log")) and "summary" in open(os.path.join(bd, "logs", b + ".log")).read()
               bstat.append(f'<span class="cell {"finished" if done else "running"}">{b.split("_")[0][1:]}<small>{"done" if done else (f"{int(bkv["n_equil"]) + last + 1} sw" if last >= 0 else "equil.")}</small></span>')
-          fig = ""
+          fig = ""; tag = os.path.basename(bd)
           src = os.path.join(bd, "transitions_star.png")
           if os.path.isfile(src) and glob.glob(os.path.join(bd, "out", "J*_obs.dat")):
               tag = os.path.basename(bd); shutil.copyfile(src, os.path.join(a.out, "img", f"transitions_{tag}.png"))
               fig = f'<figure class="fig"><img src="img/transitions_{tag}.png?v={int(os.path.getmtime(src))}" alt="box transition"><figcaption><span>Same panels for the periodic box; blue = {bkv["n_arms"]} independent 1D chains with registries (handedness ceiling of independent chains ≈ 0.036).</span><span class="mono">t45/{tag}/transitions_star.png</span></figcaption></figure>'
+          ser = os.path.join(bd, "series_box.png")
+          if os.path.isfile(ser):
+              shutil.copyfile(ser, os.path.join(a.out, "img", f"series_{tag}.png"))
+              fig += f'<figure class="fig"><img src="img/series_{tag}.png?v={int(os.path.getmtime(ser))}" alt="box time series"><figcaption><span>Time series against the cumulative production sweep, restarted runs stitched at their restart frames (dotted): helicity of all chains, total energy per residue, non-bonded energy per residue, bonded energies per residue.</span><span class="mono">t45/{tag}/series_box.png</span></figcaption></figure>'
           rho = int(bkv["n_arms"]) * int(bkv["N"]) / float(bkv["box"]) ** 3
           box_html += f'''
     <section>

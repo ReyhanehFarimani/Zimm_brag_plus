@@ -1,8 +1,8 @@
 t45 star 50 arms × 50, core 2.5 a: 12 / 24 runs finished, 3 partial; averages over the last 50% of each run
 1D theory with registries: theta = 1/2 at J = 5.38; <|m|> = 1/2 at J = 6.12 for one arm; 50 independent arms saturate at <|m|> = 0.112
     J  n  theta MC  theory  <|m|> MC  theory   U4 MC  theory      Rg2    E_nb  E_twist   (theory = independent arms with registries)
-    5  1    0.4308  0.3621    0.0212  0.0173  -0.054   0.000   1612.1 165.451   324.84   partial: 12k sweeps
-  5.5  2    0.6738  0.5973    0.0343  0.0315  -0.036   0.002   1747.5 136.960   662.32   partial: 20k sweeps
+    5  1    0.4307  0.3621    0.0218  0.0173  -0.041   0.000   1616.7 165.387   325.42   partial: 13k sweeps
+  5.5  2    0.6734  0.5973    0.0343  0.0315  -0.063   0.002   1748.9 137.456   661.76   partial: 21k sweeps
     6  2    0.8847  0.8520    0.0644  0.0596   0.008   0.006   1935.1 121.610  1003.54
   6.5  2    0.9667  0.9578    0.0850  0.0885  -0.025   0.011   2065.8 115.348  1158.77
     7  2    0.9898  0.9871    0.1057  0.1038   0.055   0.012   2107.9 112.577  1205.62
