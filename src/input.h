@@ -224,6 +224,12 @@ struct Input {
     // neighbour list) uses the minimum image; positions stay unwrapped (bonded terms use direct differences).
     // Ree and Rg2 in the obs file are then per-chain means.  Needs box > 2 (cutoff + nl_skin).
     double box         = 0.0;
+    // RESTART (2026-09-24, user: "restart using the last point"): read states, positions and registries of one
+    // frame of a trajectory written by this code (<out_prefix>_conf.xyz, extended xyz) instead of the fresh
+    // initial condition; restart_frame = -1 is the last frame. Everything else (J, moves, box, ...) comes from
+    // this input as usual; a new seed continues the Markov chain from that configuration.
+    std::string restart_file;
+    int    restart_frame = -1;
     // pivot energies through a cell grid (O(tail) instead of O(tail x N) all-pairs): -1 = automatic (systems of
     // 5000+ residues), 0 = never, 1 = always (used by the harness); the energies agree to round-off
     int    pivot_grid  = -1;

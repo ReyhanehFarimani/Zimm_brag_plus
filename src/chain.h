@@ -26,6 +26,7 @@ class Chain {
 public:
     explicit Chain(const Input& in);
     void init();                       // states per Input::init_state, positions per Input::init
+    void load_restart();               // overwrite states / positions / registries from Input::restart_file
 
     int N() const { return N_; }
     const Input& input() const { return in_; }

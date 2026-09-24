@@ -21,6 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
 
 LOG = [  # (time, text) -- the campaign log shown at the bottom, newest first
+    ("12:15", "Box RESTARTED from the last dumped frame of run 1 (production sweep 6000, states + positions + registries, new seed; the reader reproduces the logged energies of that frame exactly) for 20k more sweeps. Run 1 (~6700 sweeps) is archived in prev_run1/. New input keys restart_file / restart_frame."),
     ("04:50", "Box relaunched with dense-system move steps: max_disp 0.3 (was 1.0), pivot angle 0.3 rad (was π), skin 2. The first launch accepted 3.5 % of position moves and 0.3 % of pivots and sat frozen: helicity 0.91 at J = 9 against 1.00, creeping up 0.002 per 100 sweeps. Its 250 production sweeps are archived in prev_disp1/."),
     ("03:02", "Periodic box launched: 500 free chains × 50 residues, box 63 a (residue density 0.1 = monomer density 0.7), J = 9, 8, 7, 6 on 4 workers. New code: `box` input with minimum-image non-bonded interactions; a cell grid for pivots; the neighbour list re-references a bead before an uncovered trial move (the all-pairs fallback was 95 % of the cost of large systems)."),
     ("02:45", "Harness on a dense periodic box exposed a PRE-EXISTING pivot bug: the pivot bead's own pair energies (its axis turns with the rotated bond) were never recomputed; fixed. In the dilute star this was 1 in 588 pivots by 0.002 kT (the mismatch seen earlier); in the box 16 kT. A second periodic-only piece: intra-tail pairs change through the minimum image when a chain is longer than half the box; counted now."),
@@ -182,7 +183,7 @@ def main():
   <section>
     <h2>Periodic box: {bkv["n_arms"]} free chains × {bkv["N"]} residues</h2>
     <p class="muted" style="margin:0 0 8px">Cubic box of {float(bkv["box"]):.1f} a, residue density {rho:.3f} a⁻³ (monomer density {7 * rho:.2f} with 7 monomers per residue), minimum-image non-bonded interactions,
-    one pivot and one flip per chain per sweep, {int(bkv["n_equil"])} + {int(bkv["n_sweeps"]) // 1000}k sweeps, J = 9, 8, 7, 6, one seed each; max_disp {float(bkv.get("max_disp", 1)):g}, pivot angle {float(bkv.get("max_rot", 3.14)):g} rad. Relaunched 04:50.</p>
+    one pivot and one flip per chain per sweep, {int(bkv["n_equil"])} + {int(bkv["n_sweeps"]) // 1000}k sweeps, J = 9, 8, 7, 6, one seed each; max_disp {float(bkv.get("max_disp", 1)):g}, pivot angle {float(bkv.get("max_rot", 3.14)):g} rad.{" Restarted 12:15 from the last frame of the previous run (its sweep 6000); sweeps count from 0 again." if bkv.get("restart_file") else " Relaunched 04:50."}</p>
     <div class="grid">{"".join(bstat)}</div>
     {fig}
     <div class="tbl"><table><thead><tr><th>J</th><th>seeds</th><th>θ</th><th class="th">theory</th><th>⟨|m|⟩</th><th class="th">theory</th><th>U₄</th><th class="th">theory</th><th>⟨R_g²⟩ per chain [a²]</th><th>⟨E_nb⟩</th><th>⟨E_twist⟩</th><th>status</th></tr></thead>

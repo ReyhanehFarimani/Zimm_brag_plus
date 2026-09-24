@@ -107,6 +107,8 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "nb_min_sep") return parse(val, in.nb_min_sep);
     if (key == "n_arms")      return parse(val, in.n_arms);
     if (key == "box")         return parse(val, in.box);
+    if (key == "restart_file")  { in.restart_file = val; return true; }
+    if (key == "restart_frame") return parse(val, in.restart_frame);
     if (key == "pivot_grid")  return parse(val, in.pivot_grid);
     if (key == "core_radius") return parse(val, in.core_radius);
     if (key == "core_k")      return parse(val, in.core_k);
@@ -290,6 +292,8 @@ void print_input(const Input& in) {
     if (in.n_arms > 0)
         std::printf("# STAR        = %d arms x %d residues on a core of radius %g a (wall k = %g, graft k = %g)\n",
                     in.n_arms, in.N, in.core_radius, in.core_k, in.graft_k);
+    if (!in.restart_file.empty())
+        std::printf("# restart_file = %s  (frame %d)\n", in.restart_file.c_str(), in.restart_frame);
     if (in.box > 0.0)
         std::printf("# box         = %g  (periodic, %d free chains of %d residues, residue density %.4f, minimum image)\n",
                     in.box, in.n_arms, in.N, in.n_arms * in.N / (in.box * in.box * in.box));

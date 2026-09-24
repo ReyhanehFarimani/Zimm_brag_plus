@@ -5,6 +5,11 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 Chain::Chain(const Input& in)
     : state(in.n_arms > 0 ? in.n_arms * in.N : in.N, State::Coil), pos(in.n_arms > 0 ? in.n_arms * in.N : in.N),
@@ -71,6 +76,52 @@ void Chain::init() {
     }
     nl.dirty = true;
     registry_init(*this, rng);          // one uniform registry per residue
+    if (!in_.restart_file.empty()) load_restart();
+}
+
+// Restart from a frame of a trajectory written by Logger::dump_config (extended xyz: "Properties=species:S:1:pos:R:3:
+// ...:registry:R:3:..." in the comment line, the star core as an extra first particle X). States, positions and
+// registries are taken over; the neighbour list is rebuilt on first use.
+void Chain::load_restart() {
+    std::ifstream f(in_.restart_file);
+    if (!f) { std::fprintf(stderr, "restart_file %s: cannot open\n", in_.restart_file.c_str()); std::exit(EXIT_FAILURE); }
+    std::string line; std::vector<std::string> frame; std::string header; int want = in_.restart_frame, idx = 0, got = -1; bool have = false;
+    while (std::getline(f, line)) {
+        const int n = std::atoi(line.c_str()); std::string hdr; std::getline(f, hdr);
+        std::vector<std::string> rows; rows.reserve(n);
+        for (int k = 0; k < n; ++k) { std::getline(f, line); rows.push_back(line); }
+        if (want < 0 || idx == want) { frame.swap(rows); header = hdr; have = true; got = idx; }
+        if (idx == want) break;
+        ++idx;
+    }
+    if (!have) { std::fprintf(stderr, "restart_file %s: frame %d not found (%d frames)\n", in_.restart_file.c_str(), want, idx); std::exit(EXIT_FAILURE); }
+    // column layout from the Properties string
+    int col = 0, c_pos = -1, c_reg = -1, n_reg = 0;
+    const size_t p0 = header.find("Properties="); std::string props = p0 == std::string::npos ? "" : header.substr(p0 + 11);
+    props = props.substr(0, props.find(' '));
+    std::istringstream ps(props); std::string tok; std::vector<std::string> t;
+    while (std::getline(ps, tok, ':')) t.push_back(tok);
+    for (size_t k = 0; k + 2 < t.size(); k += 3) {
+        const int cnt = std::atoi(t[k + 2].c_str());
+        if (t[k] == "pos") c_pos = col;
+        if (t[k] == "registry") { c_reg = col; n_reg = cnt; }
+        col += cnt;
+    }
+    if (c_pos < 0) { std::fprintf(stderr, "restart_file: no pos column\n"); std::exit(EXIT_FAILURE); }
+    int i = 0;
+    for (const std::string& r : frame) {
+        std::istringstream ss(r); std::vector<std::string> w; while (ss >> tok) w.push_back(tok);
+        if (w.empty() || w[0] == "X") continue;                       // the star core
+        if (i >= N_) { std::fprintf(stderr, "restart_file: more residues than N = %d\n", N_); std::exit(EXIT_FAILURE); }
+        state[i] = w[0] == "R" ? State::R : (w[0] == "L" ? State::L : State::Coil);
+        pos[i] = Vec3(std::atof(w[c_pos].c_str()), std::atof(w[c_pos + 1].c_str()), std::atof(w[c_pos + 2].c_str()));
+        if (c_reg >= 0 && n_reg == 3 && i < (int)reg.size()) reg[i] = Vec3(std::atof(w[c_reg].c_str()), std::atof(w[c_reg + 1].c_str()), std::atof(w[c_reg + 2].c_str()));
+        ++i;
+    }
+    if (i != N_) { std::fprintf(stderr, "restart_file: %d residues, N = %d\n", i, N_); std::exit(EXIT_FAILURE); }
+    const size_t sp = header.find("sweep="); const long sw = sp == std::string::npos ? -1 : std::atol(header.c_str() + sp + 6);
+    std::printf("# restart: %d residues from %s frame %d of %d (sweep %ld)%s\n", i, in_.restart_file.c_str(), got, idx, sw, c_reg >= 0 ? ", registries taken over" : "");
+    nl.dirty = true;
 }
 
 double Chain::bend_angle(int i) const {
