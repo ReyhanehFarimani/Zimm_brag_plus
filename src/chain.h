@@ -40,6 +40,14 @@ public:
     bool has_bond(int i) const { return i >= 0 && i + 1 < N_ && same_arm(i, i + 1); }
     bool has_bend(int i) const { return i >= 1 && i + 1 < N_ && same_arm(i - 1, i + 1); }
     int  n_arms() const { return n_arms_; }
+    // periodic box (Input::box): minimum-image separation for every NON-bonded distance; 0 = open space
+    double box() const { return box_; }
+    bool has_core() const { return n_arms_ > 0 && box_ == 0.0; }      // the star's core and grafts
+    Vec3 minimg(Vec3 d) const {
+        if (box_ > 0.0) { d.x -= box_ * std::round(d.x / box_); d.y -= box_ * std::round(d.y / box_); d.z -= box_ * std::round(d.z / box_); }
+        return d;
+    }
+    Vec3 dr(int i, int j) const { return minimg(pos[j] - pos[i]); }   // pos[j] - pos[i], minimum image
     std::vector<Vec3> graft;           // graft site of each arm (star only)
 
     // Which parameter set applies.
@@ -98,14 +106,20 @@ public:
         double r_list2 = 0.0;                      // (largest pair cutoff + skin)^2
         double half_skin2 = 0.0;                   // (skin / 2)^2
         long   n_build = 0;
+        long   n_update = 0;                       // incremental single-bead updates (nl_update_bead)
         std::vector<Vec3> ref;
-        std::vector<std::vector<int> > nbrs;       // per bead, ascending, only |i-j| > 1
+        std::vector<std::vector<int> > nbrs;       // per bead, ascending
+        // cell grid of the REFERENCE positions (periodic boxes only): makes the single-bead re-listing
+        // (nl_update_bead) local, O(27 cells) instead of O(N)
+        int gn = 0; double gcell = 0.0;
+        std::vector<int> ghead, gnext;
     };
     mutable NeighbourList nl;
 
 private:
     int N_;
     int n_arms_ = 0, arm_len_ = 0;
+    double box_ = 0.0;
     const Input& in_;
     bool pair_keyed_bends_;
 };

@@ -293,7 +293,7 @@ double nb_pair_energy(const Chain& chain, int a, int b) {
     const Input& in = chain.input();
     if (a > b) std::swap(a, b);                  // canonical order: the pair energy must not depend on it
     if (b - a < in.nb_min_sep && chain.same_arm(a, b)) return 0.0;   // 1-2 and (default) 1-3 pairs: bonded terms only
-    const Vec3 rvec = chain.pos[b] - chain.pos[a];
+    const Vec3 rvec = chain.dr(a, b);            // minimum image in a periodic box
     const double r2 = norm2(rvec);
     if (r2 >= chain.nl.rc_max2) return 0.0;      // beyond every cutoff: skip the tangents
     if (is_helix(chain.state[a]) && is_helix(chain.state[b])) {
@@ -340,6 +340,8 @@ double nb_cutoff_max(const Input& in) {
 // ---- Verlet neighbour list ----
 // The lists are ascending and the loops below visit the pairs in the same order as the all-pairs
 // loops; the pairs left out contribute exactly 0, so both paths give bit-identical sums.
+int nl_cell(const Chain::NeighbourList& nl, const Vec3& p);
+
 bool nl_ready(const Chain& chain) {
     Chain::NeighbourList& nl = chain.nl;
     if (!nl.on) return false;
@@ -350,15 +352,71 @@ bool nl_ready(const Chain& chain) {
     for (int i = 0; i < N; ++i) nl.nbrs[i].clear();
     for (int i = 0; i < N; ++i)
         for (int j = i + 1; j < N; ++j)
-            if (norm2(chain.pos[j] - chain.pos[i]) < nl.r_list2) { nl.nbrs[i].push_back(j); nl.nbrs[j].push_back(i); }
+            if (norm2(chain.dr(i, j)) < nl.r_list2) { nl.nbrs[i].push_back(j); nl.nbrs[j].push_back(i); }
     nl.dirty = false;
     ++nl.n_build;
+    // reference grid for O(1) re-listing in a periodic box (cell >= list radius: 27 cells hold every candidate)
+    nl.gn = 0;
+    if (chain.box() > 0.0) {
+        const double rl = std::sqrt(nl.r_list2);
+        const int gn = (int)std::floor(chain.box() / rl);
+        if (gn >= 3) {
+            nl.gn = gn; nl.gcell = chain.box() / gn;
+            nl.ghead.assign((size_t)gn * gn * gn, -1); nl.gnext.assign(N, -1);
+            for (int k = 0; k < N; ++k) { const int c = nl_cell(nl, nl.ref[k]); nl.gnext[k] = nl.ghead[c]; nl.ghead[c] = k; }
+        }
+    }
     return true;
+}
+
+int nl_cell(const Chain::NeighbourList& nl, const Vec3& p) {
+    auto w = [&](double x) { int c = (int)std::floor(x / nl.gcell) % nl.gn; return c < 0 ? c + nl.gn : c; };
+    return (w(p.x) * nl.gn + w(p.y)) * nl.gn + w(p.z);
 }
 
 bool nl_covers(const Chain& chain, int i, const Vec3& p) {
     if (!nl_ready(chain)) return false;
     return norm2(p - chain.nl.ref[i]) <= chain.nl.half_skin2;
+}
+
+void nl_update_bead(const Chain& chain, int i) {
+    Chain::NeighbourList& nl = chain.nl;
+    if (!nl.on) return;
+    if (nl.dirty) return;                                   // a full rebuild is pending anyway
+    const int N = chain.N();
+    for (int j : nl.nbrs[i]) {                              // drop i from its current neighbours' lists
+        std::vector<int>& L = nl.nbrs[j];
+        std::vector<int>::iterator it = std::lower_bound(L.begin(), L.end(), i);
+        if (it != L.end() && *it == i) L.erase(it);
+    }
+    nl.nbrs[i].clear();
+    if (nl.gn > 0) {                                        // periodic box: take i out of its reference cell
+        int c = nl_cell(nl, nl.ref[i]);
+        if (nl.ghead[c] == i) nl.ghead[c] = nl.gnext[i];
+        else { int k = nl.ghead[c]; while (k >= 0 && nl.gnext[k] != i) k = nl.gnext[k]; if (k >= 0) nl.gnext[k] = nl.gnext[i]; }
+    }
+    nl.ref[i] = chain.pos[i];
+    auto consider = [&](int j) {                            // against the REFERENCE positions: the pair bound
+        if (j == i) return;                                 // r_list - skin = rc then holds for every unlisted pair
+        if (norm2(chain.minimg(nl.ref[j] - nl.ref[i])) < nl.r_list2) {
+            nl.nbrs[i].push_back(j);
+            std::vector<int>& L = nl.nbrs[j];
+            L.insert(std::lower_bound(L.begin(), L.end(), i), i);
+        }
+    };
+    if (nl.gn > 0) {
+        auto w = [&](double x) { int c = (int)std::floor(x / nl.gcell) % nl.gn; return c < 0 ? c + nl.gn : c; };
+        const int ix = w(nl.ref[i].x), iy = w(nl.ref[i].y), iz = w(nl.ref[i].z);
+        for (int dx = -1; dx <= 1; ++dx) for (int dy = -1; dy <= 1; ++dy) for (int dz = -1; dz <= 1; ++dz) {
+            const int jx = (ix + dx + nl.gn) % nl.gn, jy = (iy + dy + nl.gn) % nl.gn, jz = (iz + dz + nl.gn) % nl.gn;
+            for (int j = nl.ghead[(jx * nl.gn + jy) * nl.gn + jz]; j >= 0; j = nl.gnext[j]) consider(j);
+        }
+        std::sort(nl.nbrs[i].begin(), nl.nbrs[i].end());
+        const int c = nl_cell(nl, nl.ref[i]); nl.gnext[i] = nl.ghead[c]; nl.ghead[c] = i;
+    } else {
+        for (int j = 0; j < N; ++j) consider(j);
+    }
+    ++nl.n_update;
 }
 
 bool nl_verify(const Chain& chain) {
@@ -368,7 +426,7 @@ bool nl_verify(const Chain& chain) {
     for (int i = 0; i < N; ++i) {
         if (norm2(chain.pos[i] - nl.ref[i]) > nl.half_skin2) return false;          // the invariant itself
         for (int j = i + 1; j < N; ++j)
-            if (norm2(chain.pos[j] - chain.pos[i]) < nl.rc_max2
+            if (norm2(chain.dr(i, j)) < nl.rc_max2
                 && !std::binary_search(nl.nbrs[i].begin(), nl.nbrs[i].end(), j)) return false;
     }
     return true;
@@ -416,14 +474,88 @@ double nb_local_energy(const Chain& chain, int i, bool use_list) {
     return e;
 }
 
+// ---- cell grid for the pivot energy of large systems (2026-09-24, the 25 000-residue periodic box: the
+// all-pairs tail loop cost ~40 s per sweep).  Cells of side >= the largest cutoff over the periodic box (or the
+// bounding box of the positions); a bead's interaction partners are all in the 27 surrounding cells.
+namespace {
+struct CellGrid {
+    int nx = 0, ny = 0, nz = 0; Vec3 lo; double cx = 1, cy = 1, cz = 1; bool periodic = false;
+    std::vector<int> head, next;
+    bool build(const Chain& chain, double rc) {
+        const int N = chain.N(); periodic = chain.box() > 0.0;
+        if (periodic) {
+            nx = ny = nz = (int)std::floor(chain.box() / rc);
+            if (nx < 3) return false;                        // the 27-cell neighbourhood would double count
+            cx = cy = cz = chain.box() / nx; lo = Vec3(0, 0, 0);
+        } else {
+            Vec3 hi = chain.pos[0]; lo = chain.pos[0];
+            for (int k = 1; k < N; ++k) {
+                lo.x = std::min(lo.x, chain.pos[k].x); lo.y = std::min(lo.y, chain.pos[k].y); lo.z = std::min(lo.z, chain.pos[k].z);
+                hi.x = std::max(hi.x, chain.pos[k].x); hi.y = std::max(hi.y, chain.pos[k].y); hi.z = std::max(hi.z, chain.pos[k].z);
+            }
+            cx = cy = cz = rc;
+            nx = (int)((hi.x - lo.x) / rc) + 1; ny = (int)((hi.y - lo.y) / rc) + 1; nz = (int)((hi.z - lo.z) / rc) + 1;
+            if ((long)nx * ny * nz > 8L * N + 1000) return false;   // too sparse to be worth it
+        }
+        head.assign((size_t)nx * ny * nz, -1); next.assign(N, -1);
+        for (int k = 0; k < N; ++k) { const int c = cell_of(chain.pos[k]); next[k] = head[c]; head[c] = k; }
+        return true;
+    }
+    int wrap(int i, int n) const { i %= n; return i < 0 ? i + n : i; }
+    int cell_of(const Vec3& p) const {
+        int ix = (int)std::floor((p.x - lo.x) / cx), iy = (int)std::floor((p.y - lo.y) / cy), iz = (int)std::floor((p.z - lo.z) / cz);
+        if (periodic) { ix = wrap(ix, nx); iy = wrap(iy, ny); iz = wrap(iz, nz); }
+        else { ix = std::max(0, std::min(nx - 1, ix)); iy = std::max(0, std::min(ny - 1, iy)); iz = std::max(0, std::min(nz - 1, iz)); }
+        return (ix * ny + iy) * nz + iz;
+    }
+    // sum of f(b) over the beads b in the 27 cells around p
+    template <class F> void around(const Vec3& p, F f) const {
+        int ix = (int)std::floor((p.x - lo.x) / cx), iy = (int)std::floor((p.y - lo.y) / cy), iz = (int)std::floor((p.z - lo.z) / cz);
+        if (periodic) { ix = wrap(ix, nx); iy = wrap(iy, ny); iz = wrap(iz, nz); }
+        else { ix = std::max(0, std::min(nx - 1, ix)); iy = std::max(0, std::min(ny - 1, iy)); iz = std::max(0, std::min(nz - 1, iz)); }
+        for (int dx = -1; dx <= 1; ++dx) for (int dy = -1; dy <= 1; ++dy) for (int dz = -1; dz <= 1; ++dz) {
+            int jx = ix + dx, jy = iy + dy, jz = iz + dz;
+            if (periodic) { jx = wrap(jx, nx); jy = wrap(jy, ny); jz = wrap(jz, nz); }
+            else if (jx < 0 || jy < 0 || jz < 0 || jx >= nx || jy >= ny || jz >= nz) continue;
+            for (int b = head[(jx * ny + jy) * nz + jz]; b >= 0; b = next[b]) f(b);
+        }
+    }
+};
+}
+
 double nb_pivot_energy(const Chain& chain, int i) {
     // pairs between the tail (i+1 .. last of i's arm), which the pivot moves rigidly, and everything else
-    if (chain.input().nb_type[0] == 'n') return 0.0;
+    const Input& in = chain.input();
+    if (in.nb_type[0] == 'n') return 0.0;
     double e = 0.0;
     const int N = chain.N(), t0 = i + 1, t1 = chain.arm_last(i);
+    const bool use_grid = in.pivot_grid > 0 || (in.pivot_grid < 0 && N >= 5000);
+    // periodic box: the rigid rotation preserves the direct intra-tail separations but NOT their minimum images once
+    // a separation exceeds half the box (a chain in contact with its own periodic image), so intra-tail pairs whose
+    // direct distance can exceed box/2 are counted as well (2026-09-24, harness on the 14 a box)
+    const bool self_image = chain.box() > 0.0;
+    if (use_grid) {
+        static CellGrid grid;                                   // one MC process, one grid: reused across calls
+        if (grid.build(chain, std::sqrt(chain.nl.rc_max2))) {
+            for (int a = t0; a <= t1; ++a)
+                grid.around(chain.pos[a], [&](int b) { if (b < t0 || b > t1 || (self_image && b > a)) e += nb_pair_energy(chain, a, b); });
+            if (nb_anisotropic(in))
+                grid.around(chain.pos[i], [&](int b) { if ((b < t0 || b > t1) && b != i) e += nb_pair_energy(chain, i, b); });
+            return e;
+        }
+    }
+    if (self_image)
+        for (int a = t0; a <= t1; ++a) for (int b = a + 1; b <= t1; ++b) e += nb_pair_energy(chain, a, b);
     for (int a = t0; a <= t1; ++a) {
         for (int b = 0; b < t0; ++b) e += nb_pair_energy(chain, a, b);
         for (int b = t1 + 1; b < N; ++b) e += nb_pair_energy(chain, a, b);
+    }
+    // the pivot bead i does not move, but its tangent turns with bond (i, i+1): with an anisotropic helix-helix
+    // potential its pairs with the beads OUTSIDE the tail change too (found 2026-09-24 by the harness on a dense
+    // periodic box, 18 / 117 pivots off by up to 16 kT; in the dilute star it was 1 / 588 by 2e-3 kT)
+    if (nb_anisotropic(chain.input())) {
+        for (int b = 0; b < i; ++b) e += nb_pair_energy(chain, i, b);
+        for (int b = t1 + 1; b < N; ++b) e += nb_pair_energy(chain, i, b);
     }
     return e;
 }
@@ -432,6 +564,12 @@ double total_nb_energy(const Chain& chain) {
     if (chain.input().nb_type[0] == 'n') return 0.0;
     double e = 0.0;
     const int N = chain.N();
+    if (nl_ready(chain)) {                                   // every pair inside the cutoff is listed: O(N) instead of O(N^2)
+        for (int a = 0; a < N; ++a)
+            for (int b : chain.nl.nbrs[a])
+                if (b > a) e += nb_pair_energy(chain, a, b);
+        return e;
+    }
     for (int a = 0; a < N; ++a)
         for (int b = a + 1; b < N; ++b)
             e += nb_pair_energy(chain, a, b);
@@ -442,7 +580,7 @@ double total_nb_energy(const Chain& chain) {
 // ---------------------------------------------------------------- star core (n_arms > 0)
 double core_energy_at(const Chain& chain, int i, const Vec3& p) {
     const Input& in = chain.input();
-    if (chain.n_arms() == 0) return 0.0;
+    if (!chain.has_core()) return 0.0;                     // linear chain, or free chains in a periodic box
     const double d0 = in.core_radius + 0.5, r = norm(p);
     double e = 0.0;
     if (r < d0) e += 0.5 * in.core_k * (d0 - r) * (d0 - r);                 // harmonic wall at the core surface
@@ -459,5 +597,5 @@ double core_range_energy(const Chain& chain, int lo, int hi) {
 }
 
 double total_core_energy(const Chain& chain) {
-    return chain.n_arms() ? core_range_energy(chain, 0, chain.N() - 1) : 0.0;
+    return chain.has_core() ? core_range_energy(chain, 0, chain.N() - 1) : 0.0;
 }

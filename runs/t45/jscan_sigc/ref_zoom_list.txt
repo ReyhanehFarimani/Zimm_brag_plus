@@ -1,0 +1,15 @@
+inputs/J2.75_es0_sc0_s1.dat
+inputs/J2.75_es0_sc0_s2.dat
+inputs/J2.75_es0_sc0_s3.dat
+inputs/J3.25_es0_sc0_s1.dat
+inputs/J3.25_es0_sc0_s2.dat
+inputs/J3.25_es0_sc0_s3.dat
+inputs/J3.75_es0_sc0_s1.dat
+inputs/J3.75_es0_sc0_s2.dat
+inputs/J3.75_es0_sc0_s3.dat
+inputs/J4.25_es0_sc0_s1.dat
+inputs/J4.25_es0_sc0_s2.dat
+inputs/J4.25_es0_sc0_s3.dat
+inputs/J4.75_es0_sc0_s1.dat
+inputs/J4.75_es0_sc0_s2.dat
+inputs/J4.75_es0_sc0_s3.dat

@@ -1,0 +1,3 @@
+inputs/J2.5_es0_sc0_s1.dat
+inputs/J2.5_es0_sc0_s2.dat
+inputs/J2.5_es0_sc0_s3.dat

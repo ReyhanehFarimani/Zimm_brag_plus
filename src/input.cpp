@@ -1,4 +1,5 @@
 #include "input.h"
+#include "pair_potential.h"
 
 #include <cmath>
 #include <cstdio>
@@ -105,6 +106,8 @@ bool assign(Input& in, const std::string& key, const std::string& val) {
     if (key == "nl_skin")    return parse(val, in.nl_skin);
     if (key == "nb_min_sep") return parse(val, in.nb_min_sep);
     if (key == "n_arms")      return parse(val, in.n_arms);
+    if (key == "box")         return parse(val, in.box);
+    if (key == "pivot_grid")  return parse(val, in.pivot_grid);
     if (key == "core_radius") return parse(val, in.core_radius);
     if (key == "core_k")      return parse(val, in.core_k);
     if (key == "graft_k")     return parse(val, in.graft_k);
@@ -221,7 +224,13 @@ bool read_input(const std::string& filename, Input& in) {
     if (in.n_arms > 0 && (in.n_hinge > 0 || !in.state_pattern.empty())) {
         std::fprintf(stderr, "input: a star (n_arms > 0) supports neither hinge moves nor state_pattern\n"); ok = false;
     }
-    if (in.n_arms > 0 && in.core_radius <= 0.0) {
+    if (in.box > 0.0 && in.nl_skin > 0.0 && in.box <= 2.0 * (nb_cutoff_max(in) + in.nl_skin)) {
+        std::fprintf(stderr, "input: box must exceed 2 (cutoff + nl_skin) = %g\n", 2.0 * (nb_cutoff_max(in) + in.nl_skin)); ok = false;
+    }
+    if (in.box > 0.0 && in.n_arms == 0) {
+        std::fprintf(stderr, "input: box needs n_arms > 0 (the number of chains)\n"); ok = false;
+    }
+    if (in.n_arms > 0 && in.box == 0.0 && in.core_radius <= 0.0) {
         std::fprintf(stderr, "input: core_radius must be > 0 for a star\n"); ok = false;
     }
     if (in.nb_type != "none" && in.n_hinge > 0) {
@@ -281,6 +290,9 @@ void print_input(const Input& in) {
     if (in.n_arms > 0)
         std::printf("# STAR        = %d arms x %d residues on a core of radius %g a (wall k = %g, graft k = %g)\n",
                     in.n_arms, in.N, in.core_radius, in.core_k, in.graft_k);
+    if (in.box > 0.0)
+        std::printf("# box         = %g  (periodic, %d free chains of %d residues, residue density %.4f, minimum image)\n",
+                    in.box, in.n_arms, in.N, in.n_arms * in.N / (in.box * in.box * in.box));
     std::printf("# nb_hh       = %s  (eps0 = %g, aniso_eps = %d, mu = %g, nu = %g, kappa' = %g)\n",
                 in.nb_hh.c_str(), in.gb_eps0, in.gb_aniso_eps, in.gb_mu, in.gb_nu, in.gb_kappa_p);
     if (in.nb_hh == "fit")

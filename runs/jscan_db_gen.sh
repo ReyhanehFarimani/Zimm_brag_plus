@@ -8,7 +8,7 @@
 GEOM=$(basename "$(cd .. && pwd)"); TH=${GEOM#t}; [ -f ../sample_data.dat ] || { echo "run from runs/<geom>/jscan_db"; exit 1; }
 BIN=${BIN:-../../../zimm}
 DB=/home/reyhaneh/Documents/Zimm_brag_plus/helix_pair_db_${GEOM}_win.bin
-JS=${JS:-"1 2 3 3.75 4 4.25 4.5 4.75 5 5.25 5.5 6"}   # transition J* (N = 200): 4.68 at t45, 4.19 at t100 -- 8 points across it, 4 outside (user 2026-09-23)
+JS=${JS:-"1 2 3 3.75 4 4.25 4.5 4.75 5 5.25 5.5 5.75 6 6.25 6.5 6.75 7 7.25 7.5 8 9 10"}   # user 2026-09-23: 3 seeds for 5.5-7.5 (the transition), 1 seed elsewhere
 SEEDS=${SEEDS:-"1 2 3"}
 NEQ=${NEQ:-100000}; NSW=${NSW:-1000000}
 mkdir -p inputs out logs

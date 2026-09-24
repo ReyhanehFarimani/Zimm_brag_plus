@@ -1,0 +1,1 @@
+# 2026-09-24 02:35 (user): the remaining star seeds (J5_s2 and all *_s3 with J >= 5) are HELD, not started: their lock dirs are placeholders so the running xargs skips them; the freed cores go to the periodic-box runs. To run them later: rmdir logs/{J5_s2,J5.5_s3,J5_s3,J6_s3,J6.5_s3,J7_s3,J7.5_s3,J8_s3,J9_s3}.lock and re-run ../../star_gen.sh (restartable).

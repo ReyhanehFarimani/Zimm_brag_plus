@@ -61,6 +61,12 @@ bool nl_ready(const Chain& chain);
 // true if the list stays valid with bead i at position p (within skin/2 of its reference position)
 bool nl_covers(const Chain& chain, int i, const Vec3& p);
 inline void nl_invalidate(const Chain& chain) { chain.nl.dirty = true; }
+// incremental update after bead i was moved beyond skin/2 of its reference by an ACCEPTED move that used the
+// all-pairs path: re-reference bead i and rebuild only its list entries against the other beads' reference
+// positions, O(N) instead of the O(N^2) full rebuild (2026-09-24, user: "consider the cell list update to be
+// less frequent"; the star50 scan rebuilt ~600 times per sweep). The invariant holds again (every other bead is
+// still within skin/2 of its reference), the lists stay ascending, the energies stay bit-identical.
+void nl_update_bead(const Chain& chain, int i);
 // consistency check: every pair closer than the largest cutoff is in the list (always true if off)
 bool nl_verify(const Chain& chain);
 

@@ -43,6 +43,10 @@ bool try_position_move(Chain& chain, int i, const Input& in, std::mt19937_64& rn
         // the neighbour list is exact for both configurations only if the trial position keeps bead i
         // within skin/2 of its reference; otherwise this move uses the all-pairs loop and, if accepted,
         // the list is rebuilt
+        // a trial position outside the bead's skin would need the all-pairs loop (O(N) per attempt: the 25 000-residue
+        // box spent 95 % of its time there, 2026-09-24); re-referencing the bead at its CURRENT position first keeps
+        // the list valid and covers every displacement up to skin/2
+        if (chain.nl.on && !nl_covers(chain, i, new_p)) nl_update_bead(chain, i);
         const bool use_list = nl_covers(chain, i, new_p);
         const double e_nb_old = nb_local_energy(chain, i, use_list);
         // registries (nb_hh = db): the tangents of i-1, i, i+1 change with pos[i]; their registries
@@ -69,7 +73,7 @@ bool try_position_move(Chain& chain, int i, const Input& in, std::mt19937_64& rn
                    : nb_local_energy(chain, i, use_list)) - e_nb_old_r;
         g_last_dE = dE;
         if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) {
-            if (!use_list) nl_invalidate(chain);
+            if (!use_list) nl_update_bead(chain, i);   // O(N) re-listing of bead i instead of a full rebuild
             return true;
         }
         chain.pos[i] = old_p;

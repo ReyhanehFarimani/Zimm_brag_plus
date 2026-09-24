@@ -44,7 +44,11 @@ bool try_pivot_move(Chain& chain, int i, const Input& in, std::mt19937_64& rng) 
     g_last_dE = dE;
     // a pivot moves the whole tail by arbitrary distances: its energy is an all-pairs sum (nb_pivot_energy
     // does not use the neighbour list) and an accepted pivot invalidates the list
-    if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) { nl_invalidate(chain); return true; }
+    if (dE <= 0.0 || unif(rng) < std::exp(-dE / in.kT)) {
+        if (chain.nl.on && !chain.nl.dirty && t1 - i <= chain.N() / 8) { for (int k = i + 1; k <= t1; ++k) nl_update_bead(chain, k); }
+        else nl_invalidate(chain);                                     // long tails: the full rebuild is cheaper
+        return true;
+    }
     std::copy(old_tail.begin(), old_tail.end(), chain.pos.begin() + i + 1);   // rejected: restore
     if (reg) std::copy(old_reg.begin(), old_reg.end(), chain.reg.begin() + i);
     return false;

@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
         const double d = total(chain) - e0 - g_last_dE;
         if (std::fabs(d) > 1e-8 * (1.0 + std::fabs(g_last_dE))) { ++n_bad[kind]; if (std::fabs(d) > worst[kind]) worst[kind] = std::fabs(d); }
         if (registry_check(chain)) { std::printf("registry invariant violated after %s\n", names[kind]); return 2; }
+        if (!nl_verify(chain)) { std::printf("neighbour-list invariant violated after %s (iteration %d)\n", names[kind], it); return 3; }
     }
     for (int k = 0; k < 5; ++k)
         std::printf("%-9s accepted %5ld  dE mismatches %ld  (worst %.2e)\n", names[k], n_acc[k], n_bad[k], worst[k]);

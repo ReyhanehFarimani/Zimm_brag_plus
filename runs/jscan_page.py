@@ -85,10 +85,11 @@ figcaption {{ display:flex; justify-content:space-between; gap:12px; flex-wrap:w
     <p class="sub">Zimm–Bragg chain, N = 200, E<sub>HH</sub> = −J, E<sub>RL</sub> = +J, E<sub>CH</sub> = 0, with the
     six-argument helix–helix TABLE (r, β<sub>A</sub>, β<sub>B</sub>, ψ, α<sub>A</sub>, α<sub>B</sub>) and the registry twist
     terms (R·R / L·L: Δα₀ = ±25.3°, κ = 6.6 k<sub>B</sub>T/rad²; R·L: 180°, κ = 4.9 at θ₀ = 45°) — no ε<sub>s</sub> series.
-    J = 5.5 … 7.5 in steps of 0.25 across the crossovers with three seeds, plus 1, 2, 3, 3.75 … 5.25, 8, 9, 10 with one seed;
-    1 M sweeps (exact 1D crossover J*(N = 200) = 4.68 at θ₀ = 45°; the explicit registries shift it up by ≈ 2). Bonded constants k = 2K of the fits, non-bonded
-    pairs from 1-4 (both fixed 2026-09-23); restarted 19:31 with the R·L twist term. Blue curves: exact 1D chain without non-bonded interactions, N = 100 … 1600.
-    Redrawn from the finished runs.</p>
+    J = 1 … 10 (steps of 0.25 between 3.75 and 7.5), one seed each, 1 M sweeps. Bonded constants k = 2K of the fits,
+    non-bonded pairs from 1-4 (both fixed 2026-09-23). Coloured curves: the 1D transfer matrix WITH the registries
+    integrated out (E<sub>HH</sub> = −J + F<sub>HH</sub>, E<sub>RL</sub> = +J + F<sub>RL</sub>, the junction registry free
+    energies 1.86 / 1.72 k<sub>B</sub>T), N = 100 … 1600; grey: the registry-free 1D chain. Filled points = finished runs,
+    hollow = still running.</p>
   </header>
   <div class="status">{"".join(status)}<div><div class="k">Last update</div><div class="v">{now}</div></div>
     <div><div class="k">Campaign</div><div class="v">{"FINISHED" if all_done else "running"}</div></div></div>

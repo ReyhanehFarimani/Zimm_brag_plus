@@ -30,7 +30,8 @@ Logger::~Logger() {
 void Logger::header() {
     std::fprintf(obs_, "# %10s %6s %6s %10s %12s %12s %12s %12s %12s %12s %12s %10s %10s %10s %10s %10s\n",
                  "sweep", "n_R", "n_L", "helicity", "E_state", "E_bond", "E_bend", "E_nb", "E_twist", "Ree", "Rg2", "acc_state", "acc_pos", "acc_hinge", "acc_pivot", "acc_flip");
-    if (in_.n_arms > 0) std::fprintf(obs_, "# (star: E_bond includes the core wall and graft tethers; Ree = first-to-last residue of arm 0)\n");
+    if (in_.n_arms > 0 && in_.box > 0.0) std::fprintf(obs_, "# (periodic box %g: %d free chains; Ree and Rg2 are per-chain means)\n", in_.box, in_.n_arms);
+    else if (in_.n_arms > 0) std::fprintf(obs_, "# (star: E_bond includes the core wall and graft tethers; Ree = first-to-last residue of arm 0)\n");
     std::fflush(obs_);
 }
 
@@ -75,9 +76,11 @@ void Logger::dump_config(long sweep, const Chain& chain) {
     // tangent itself; registry = the registry direction m_i (unit, perpendicular to the tangent; a
     // coil's is the dummy that enters no energy); rod_L, rod_D = rod length and diameter (helix), 0 and
     // sphere diameter (coil); spin (-1/0/+1)
-    const int extra = chain.n_arms() > 0 ? 1 : 0;                    // the core as one more particle (species X)
-    std::fprintf(conf_, "%d\nProperties=species:S:1:pos:R:3:orientation:R:4:tangent:R:3:registry:R:3:rod_L:R:1:rod_D:R:1:spin:I:1 sweep=%ld\n",
-                 chain.N() + extra, sweep);
+    const int extra = chain.has_core() ? 1 : 0;                      // the core as one more particle (species X)
+    char lattice[128] = "";
+    if (chain.box() > 0.0) std::snprintf(lattice, sizeof lattice, " Lattice=\"%g 0 0 0 %g 0 0 0 %g\" pbc=\"T T T\"", chain.box(), chain.box(), chain.box());
+    std::fprintf(conf_, "%d\nProperties=species:S:1:pos:R:3:orientation:R:4:tangent:R:3:registry:R:3:rod_L:R:1:rod_D:R:1:spin:I:1 sweep=%ld%s\n",
+                 chain.N() + extra, sweep, lattice);
     if (extra) std::fprintf(conf_, "X %14.8f %14.8f %14.8f %10.6f %10.6f %10.6f %10.6f %9.6f %9.6f %9.6f %9.6f %9.6f %9.6f %6.3f %6.3f %2d\n",
                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0 * in_.core_radius, 0);
     for (int i = 0; i < chain.N(); ++i) {
@@ -116,6 +119,6 @@ void Logger::summary(const Chain& chain, const MC& mc) {
     std::printf("# acc_hinge      = %.4f\n", mc.acc_hinge());
     std::printf("# acc_pivot      = %.4f\n", mc.acc_pivot());
     std::printf("# acc_flip       = %.4f\n", mc.acc_flip());
-    std::printf("# nl_builds      = %ld\n", chain.nl.n_build);
+    std::printf("# nl_builds      = %ld  (incremental bead updates %ld)\n", chain.nl.n_build, chain.nl.n_update);
     std::printf("# -----------------\n");
 }

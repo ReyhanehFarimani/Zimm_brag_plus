@@ -218,6 +218,15 @@ struct Input {
     // feels a harmonic wall at core_radius + 1/2 (core_k), and the first residue of each arm is tethered
     // (graft_k) to its graft site, one of n_arms Fibonacci points on the sphere of radius core_radius + 1/2.
     int    n_arms      = 0;
+    // PERIODIC BOX (user 2026-09-24, "a box of density 0.7 of 500 50-segment chains"): box > 0 = cubic periodic
+    // box of side box (bead units a).  With n_arms > 0 the arms are n_arms FREE chains of N residues (no core,
+    // no graft), placed as randomly oriented rods at random positions; every non-bonded distance (pair energies,
+    // neighbour list) uses the minimum image; positions stay unwrapped (bonded terms use direct differences).
+    // Ree and Rg2 in the obs file are then per-chain means.  Needs box > 2 (cutoff + nl_skin).
+    double box         = 0.0;
+    // pivot energies through a cell grid (O(tail) instead of O(tail x N) all-pairs): -1 = automatic (systems of
+    // 5000+ residues), 0 = never, 1 = always (used by the harness); the energies agree to round-off
+    int    pivot_grid  = -1;
     double core_radius = 4.0;
     double core_k      = 50.0;
     double graft_k     = 10.0;

@@ -10,6 +10,7 @@ Chain::Chain(const Input& in)
     : state(in.n_arms > 0 ? in.n_arms * in.N : in.N, State::Coil), pos(in.n_arms > 0 ? in.n_arms * in.N : in.N),
       N_(in.n_arms > 0 ? in.n_arms * in.N : in.N), n_arms_(in.n_arms), arm_len_(in.N), in_(in),
       pair_keyed_bends_(in.bend_key == "pair") {
+    box_ = in.box;
     const double rc = nb_cutoff_max(in);
     nl.rc_max2    = rc * rc;
     nl.on         = in.nb_type != "none" && in.nl_skin > 0.0;
@@ -35,7 +36,16 @@ void Chain::init() {
 
     // bonds start at the coil-coil length
     const double b = in_.p(Pair::CC).bond_len;
-    if (n_arms_ > 0) {
+    if (n_arms_ > 0 && box_ > 0.0) {
+        // periodic box: every chain a straight rod of random orientation from a random point of the box
+        // (overlaps are relaxed by the MC: the coil core is a soft Gaussian and the states start as coil)
+        for (int k = 0; k < n_arms_; ++k) {
+            const Vec3 p0(box_ * unif(rng), box_ * unif(rng), box_ * unif(rng));
+            const double cz = 2.0 * unif(rng) - 1.0, sz = std::sqrt(std::max(0.0, 1.0 - cz * cz)), phi = 2.0 * M_PI * unif(rng);
+            const Vec3 u(sz * std::cos(phi), sz * std::sin(phi), cz);
+            for (int m = 0; m < arm_len_; ++m) pos[k * arm_len_ + m] = p0 + (m * b) * u;
+        }
+    } else if (n_arms_ > 0) {
         // star: graft sites = Fibonacci points on the sphere of radius core_radius + 1/2; each arm starts at
         // its site and runs radially outward as a straight chain (no overlaps, no core penetration)
         graft.resize(n_arms_);
@@ -71,10 +81,24 @@ double Chain::bend_angle(int i) const {
 }
 
 double Chain::end_to_end() const {
+    if (box_ > 0.0 && n_arms_ > 0) {                       // box: mean end-to-end distance of the chains
+        double s = 0.0;
+        for (int k = 0; k < n_arms_; ++k) s += norm(pos[k * arm_len_ + arm_len_ - 1] - pos[k * arm_len_]);
+        return s / n_arms_;
+    }
     return norm(pos[N_ - 1] - pos[0]);
 }
 
 double Chain::rg2() const {
+    if (box_ > 0.0 && n_arms_ > 0) {                       // box: mean squared radius of gyration of the chains
+        double s = 0.0;
+        for (int k = 0; k < n_arms_; ++k) {
+            Vec3 c; for (int m = 0; m < arm_len_; ++m) c = c + pos[k * arm_len_ + m];
+            c = (1.0 / arm_len_) * c;
+            for (int m = 0; m < arm_len_; ++m) s += norm2(pos[k * arm_len_ + m] - c);
+        }
+        return s / N_;
+    }
     Vec3 com;
     for (const auto& p : pos) com = com + p;
     com = (1.0 / N_) * com;
